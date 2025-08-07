@@ -1,0 +1,31 @@
+# 파일런 관련 설정을 이곳에 추가하세요.
+enable-pylon-warp: true
+installation:
+  require-below-sea-level: true # 파일런 설치를 해수면 아래로 제한할지 여부
+area-effects:
+  radius: 50 # 효과 적용 반경 (블록)
+  ally-buffs:
+    enabled: true # 가문원에게 이로운 효과를 부여할지 여부
+  enemy-debuffs:
+    enabled: true # 외부인에게 해로운 효과를 부여할지 여부
+retrieval:
+  cooldown-hours: 24 # 파일런 회수 후 다음 회수까지의 대기 시간 (시간)
+  reinstall-duration-hours: 2 # 파일런 회수 후 다시 설치해야 하는 제한 시간 (시간)
+clan:
+  max-members: 4 # 가문 최대 인원수
+  max-pylons: 1 # 가문이 소유할 수 있는 최대 파일런 개수
+death-ban:
+  enabled: true # 사망 시 일정 시간 동안 접속을 금지할지 여부
+  duration-hours: 1 # 사망 시 밴 지속 시간 (시간)
+  resurrection-cost-per-minute: 1 # 밴 1분당 부활에 필요한 에메랄드 개수
+recruitment:
+  enable-random-draw: true # 팀원 뽑기를 랜덤 방식(슬롯머신)으로 할지 여부
+  cost-per-member: 64 # 현재 가문원 1명당 뽑기 비용 (다이아)
+recon-firework:
+  enabled: true # 정찰용 폭죽 사용 여부
+  cooldown-hours: 12 # 정찰용 폭죽 사용 후 다음 사용까지의 대기 시간 (시간)
+  return-duration-minutes: 1 # 착지 후 파일런으로 귀환하기까지의 대기 시간 (분)
+giftbox:
+  cooldown-hours: 4 # 선물상자 보상이 재충전되는 대기 시간 (시간)
+  min-reward-sets: 4 # 선물상자에서 나오는 최소 보상량 (1세트 = 64개)
+  max-reward-sets: 8 # 선물상자에서 나오는 최대 보상량 (1세트 = 64개)

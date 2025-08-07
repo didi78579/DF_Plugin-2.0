@@ -1,0 +1,62 @@
+# DarkForest 2.0 메인 설정 파일
+
+# ==================================================================
+# 게임 모드 프리셋
+# ==================================================================
+# 사용 가능한 게임 모드: darkforest, pylon, upgrade
+# darkforest: 모든 기능 활성화 (기본값)
+# pylon: 파일런 관련 기능만 활성화 (강화, 인챈트 등 비활성화)
+# upgrade: 강화 관련 기능만 활성화 (파일런, 이벤트 등 비활성화)
+game-mode: darkforest
+
+# ==================================================================
+# 각 주요 시스템의 활성화 여부를 제어합니다.
+# 게임 모드 프리셋에 의해 자동으로 변경될 수 있습니다.
+# ==================================================================
+system-toggles:
+  pylon: true
+  upgrade: true
+  events: true # 보급, 엔드 이벤트 등
+
+# ==================================================================
+# 세부 설정
+# ==================================================================
+
+# 사망 타이머 설정
+death-timer:
+  price: 1
+  death-count: 1
+  time: 60
+
+# 파일런 기능 설정
+pylon-features:
+  storage: true
+  return-scroll: true
+  multi-core: false
+  clan-nether: true
+
+# 월드보더 설정
+worldborder:
+  overworld-size: 20000
+  end-enabled: true
+
+# 유틸리티 설정
+utility:
+  keep-inventory: true
+  location-info-disabled: true
+  phantom-disabled: true
+  notched-apple-recipe: true
+  totem-enabled: false
+  enderchest-enabled: false
+  potion-limit: 4
+  supply-drop-enabled: true
+
+# OP 인챈트 설정
+op-enchant:
+  breach-enabled: false
+  thorns-enabled: false
+
+# 보스몹 배율 설정 (체력 및 공격력 배율)
+boss-mob-strength:
+  ender_dragon: 2.0
+  wither: 2.0

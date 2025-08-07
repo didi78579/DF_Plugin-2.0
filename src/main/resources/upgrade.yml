@@ -1,0 +1,144 @@
+# 강화 성공 확률을 채팅창에 표시할지 여부
+show-success-chance: true # 강화 성공 확률을 채팅창에 표시할지 여부
+
+# 강화석 교환 비율 설정
+exchange-rates:
+  diamond:
+    required: 1 # 필요 다이아몬드 개수
+    gained: 1
+  experience:
+    required-levels: 40 # 필요 경험치 레벨
+    gained: 128 # 획득 강화석 개수
+
+# 레벨별 강화 확률 설정
+# 키(key)는 현재 아이템 레벨을 의미합니다. (예: '0'은 +0 -> +1 강화 시도)
+# 각 레벨의 success, failure, downgrade, destroy 확률의 총합은 반드시 1.0 이어야 합니다.
+level-settings:
+  # +0 -> +1 (성공: 90%, 유지: 10%)
+  '0': { success: 0.90, failure: 0.10, downgrade: 0.0, destroy: 0.0 }
+  # +1 -> +2 (성공: 80%, 유지: 20%)
+  '1': { success: 0.80, failure: 0.20, downgrade: 0.0, destroy: 0.0 }
+  # +2 -> +3 (성공: 70%, 유지: 30%)
+  '2': { success: 0.70, failure: 0.30, downgrade: 0.0, destroy: 0.0 }
+  # +3 -> +4 (성공: 60%, 유지: 40%)
+  '3': { success: 0.60, failure: 0.40, downgrade: 0.0, destroy: 0.0 }
+  # +4 -> +5 (성공: 50%, 유지: 50%)
+  '4': { success: 0.50, failure: 0.50, downgrade: 0.0, destroy: 0.0 }
+  # +5 -> +6 (성공: 50%, 유지: 40%, 하락: 8%, 파괴: 2%)
+  '5': { success: 0.50, failure: 0.40, downgrade: 0.08, destroy: 0.02 }
+  # +6 -> +7 (성공: 50%, 유지: 35%, 하락: 10%, 파괴: 5%)
+  '6': { success: 0.50, failure: 0.35, downgrade: 0.10, destroy: 0.05 }
+  # +7 -> +8 (성공: 50%, 유지: 25%, 하락: 15%, 파괴: 10%)
+  '7': { success: 0.50, failure: 0.25, downgrade: 0.15, destroy: 0.10 }
+  # +8 -> +9 (성공: 50%, 유지: 10%, 하락: 20%, 파괴: 20%)
+  '8': { success: 0.50, failure: 0.10, downgrade: 0.20, destroy: 0.20 }
+  # +9 -> +10 (성공: 50%, 파괴: 50%)
+  '9': { success: 0.50, failure: 0.0, downgrade: 0.0, destroy: 0.50 }
+
+# 특수 능력 재사용 대기시간 설정
+cooldown:
+  # true로 설정하면, 같은 종류의 아이템이라도 개별적으로 쿨타임이 적용됩니다.
+  # false로 설정하면, 능력 이름(예: 흡혈)을 기준으로 쿨타임이 공유됩니다.
+  per-weapon-cooldown: true
+
+# 각 특수 능력의 기본 재사용 대기시간(초)
+ability-cooldowns:
+  super_jump: 0.0
+  double_jump: 0.0
+  supercharge: 5.0
+  laser_shot: 0.0
+  void_riptide: 5.0
+  vampirism: 90.0
+  shield_bash: 150.0
+  stun: 120.0
+  grappling_hook: 120.0
+  grab: 60.0
+  parricide: 60.0
+  damage_negation: 0.0
+  ignore_invulnerability: 0.0
+  regeneration: 0.0
+
+# 확률 기반 특수 능력의 발동 확률 설정
+ability-chances:
+  damage_negation: 0.07 # 7%
+
+# 각 특수 능력의 세부 속성 설정
+ability-attributes:
+  super_jump:
+    charge-time-seconds: 5.0
+    jump-velocity: 2.0
+    dash-velocity: 2.5
+  double_jump:
+    dash-velocity-multiplier: 1.3
+    dash-y-velocity: 0.5
+    pvp-cooldown-seconds: 30.0
+  supercharge:
+    charge-time-seconds: 8.0
+    damage: 20.0
+    knockback-bonus: 2
+    passive-max-health-damage-percent-per-level: 1.5
+    passive-max-health-damage-max-percent: 15.0
+  laser_shot:
+    required-level: 10
+    velocity-multiplier: 3.0
+    glow-duration-seconds: 10
+    passive-damage-per-level: 0.5
+  void_riptide:
+    required-level: 10
+    riptide-velocity-multiplier: 2.0
+    spread-radius: 3.0
+    spread-velocity-multiplier: 0.1
+    slowness-duration-seconds: 3.0
+    slowness-level: 2
+  vampirism:
+    health-steal-percent: 40.0
+    damage-multiplier: 0.5
+  shield_bash:
+    dash-strength: 2.0
+    shockwave-delay-ticks: 6
+    shockwave-radius-x: 3.0
+    shockwave-radius-y: 2.0
+    shockwave-radius-z: 3.0
+    launch-strength: 1.2
+  stun:
+    duration-seconds: 1.5
+  grappling_hook:
+    range: 30
+    pull-strength: 2.5
+  grab:
+    pull-strength: 2.5
+  parricide:
+    shield-cooldown-seconds: 30
+
+# 장비 종류별 강화 당 보너스 속성 설정
+attribute-bonuses:
+  chestplate:
+    health-per-level: 2.0
+  boots:
+    speed-multiplier-per-level: 0.05
+  leggings:
+    health-per-level: 2.0
+  helmet:
+    projectile-protection-per-level: 0.4
+    fire-protection-per-level: 0.4
+    blast-protection-per-level: 0.4
+  pickaxe:
+    efficiency-per-level: 0.5
+    unbreaking-per-level: 0.5
+  shovel:
+    efficiency-per-level: 0.5
+    unbreaking-per-level: 0.5
+  axe:
+    efficiency-per-level: 0.5
+    unbreaking-per-level: 0.5
+  hoe:
+    efficiency-per-level: 0.5.
+    unbreaking-per-level: 0.5
+  fishing_rod:
+    unbreaking-per-level: 0.5
+    lure-per-level: 0.5
+    luck_of_the_sea-per-level: 0.5
+  shield:
+    unbreaking-per-level: 1.0
+  sword:
+    attack-speed-per-level: 0.3

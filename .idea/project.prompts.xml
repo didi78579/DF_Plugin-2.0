@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PromptTemplates">
+    <option name="builtInPromptOverrides">
+      <list>
+        <BuiltInPromptOverride>
+          <option name="groupId" value="rules" />
+          <option name="promptId" value="project" />
+          <option name="text" value="한국어로 답할것&#10;&#10;내프로젝트가 있는 &#10;https://github.com/didi78579/DF_Plugin-2.0&#10;를 상시로 확인 할것    " />
+        </BuiltInPromptOverride>
+      </list>
+    </option>
+    <option name="prompts">
+      <list>
+        <PromptTemplate>
+          <option name="enabled" value="true" />
+          <option name="name" value="한국어 사용" />
+          <option name="text" value="대답은 한국어로" />
+        </PromptTemplate>
+        <PromptTemplate>
+          <option name="enabled" value="true" />
+          <option name="name" value="자동 복사" />
+          <option name="text" value="항상 자동 수락이 가능하도록 보내" />
+        </PromptTemplate>
+      </list>
+    </option>
+  </component>
+</project>

@@ -1,0 +1,12 @@
+name: DarkForest
+version: DF_Plugin-2.0
+main: cjs.DF_Plugin.DF_Main
+api-version: '1.21'
+author: CJS
+description: DarkForest 2.0 Plugin
+
+commands:
+  df:
+    description: DarkForest main command.
+    usage: /<command> [subcommand]
+    aliases: [darkforest]
