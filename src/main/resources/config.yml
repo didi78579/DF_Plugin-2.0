@@ -24,6 +24,7 @@ system-toggles:
 
 # 사망 타이머 설정
 death-timer:
+  enabled: true # true로 설정 시, 사망하면 'time'에 설정된 시간만큼 임시 추방됩니다.
   price: 1
   death-count: 1
   time: 60
@@ -34,6 +35,13 @@ pylon-features:
   return-scroll: true
   multi-core: false
   clan-nether: true
+
+# 파일런 세부 설정 (기존 pylon.yml의 내용을 통합)
+pylon:
+  max-per-clan: 1                   # 가문이 소유할 수 있는 최대 파일런 개수
+  area-effect-radius: 50            # 파일런 주변 효과 적용 반경 (블록)
+  recruitment-cost-per-member: 64   # 현재 가문원 1명당 뽑기 비용 (다이아)
+  resurrection-cost-per-minute: 1   # 밴 1분당 부활에 필요한 에메랄드 개수
 
 # 월드보더 설정
 worldborder:

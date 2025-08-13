@@ -1,8 +1,10 @@
 package cjs.DF_Plugin.clan;
 
+import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -102,7 +104,32 @@ public class Clan {
 
     // --- Pylon and Feature Getters/Setters ---
 
-    public void addPylonLocation(String location) { pylonLocations.add(location); }
+    public void addPylonLocation(String location) {
+        if (!pylonLocations.contains(location)) {
+            pylonLocations.add(location);
+        }
+    }
+
+    public void removePylonLocation(String location) {
+        pylonLocations.remove(location);
+    }
+
+    public boolean isMainPylon(String location) {
+        if (pylonLocations.isEmpty()) {
+            return false;
+        }
+        // The first pylon in the list is considered the main one.
+        return pylonLocations.get(0).equals(location);
+    }
+
+    public Location getMainPylonLocationObject() {
+        if (pylonLocations.isEmpty()) {
+            return null;
+        }
+        // The first pylon in the list is considered the main one.
+        String mainPylonStr = pylonLocations.get(0);
+        return PluginUtils.deserializeLocation(mainPylonStr);
+    }
 
     public List<String> getPylonLocations() { return pylonLocations; }
 

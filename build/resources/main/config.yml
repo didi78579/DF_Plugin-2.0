@@ -24,6 +24,7 @@ system-toggles:
 
 # 사망 타이머 설정
 death-timer:
+  enabled: true # true로 설정 시, 사망하면 'time'에 설정된 시간만큼 임시 추방됩니다.
   price: 1
   death-count: 1
   time: 60

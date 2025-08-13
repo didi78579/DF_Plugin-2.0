@@ -4,7 +4,9 @@ import cjs.DF_Plugin.actionbar.ActionBarManager;
 import cjs.DF_Plugin.clan.ClanManager;
 import cjs.DF_Plugin.command.DFCommand;
 import cjs.DF_Plugin.listener.PlayerChatListener;
+import cjs.DF_Plugin.listener.ClanNetherListener;
 import cjs.DF_Plugin.listener.BossMobListener;
+import cjs.DF_Plugin.listener.EnchantmentRuleListener;
 import cjs.DF_Plugin.listener.GameRuleListener;
 import cjs.DF_Plugin.listener.PlayerJoinListener;
 import cjs.DF_Plugin.listener.PlayerMoveListener;
@@ -22,6 +24,7 @@ import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.settings.GameModeManager;
 import cjs.DF_Plugin.upgrade.UpgradeListener;
 import cjs.DF_Plugin.upgrade.UpgradeManager;
+import cjs.DF_Plugin.pylon.beaconinteraction.PylonProtectionListener;
 import cjs.DF_Plugin.upgrade.profile.WeaponProfileManager;
 import cjs.DF_Plugin.upgrade.setting.UpgradeSettingManager;
 import cjs.DF_Plugin.upgrade.specialability.CooldownStorage;
@@ -106,6 +109,9 @@ public final class DF_Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerMoveListener(this), this);
         getServer().getPluginManager().registerEvents(new GameRuleListener(this), this);
         getServer().getPluginManager().registerEvents(new BossMobListener(this), this);
+        getServer().getPluginManager().registerEvents(new EnchantmentRuleListener(this), this);
+        getServer().getPluginManager().registerEvents(new PylonProtectionListener(this), this);
+        getServer().getPluginManager().registerEvents(new ClanNetherListener(this), this);
 
         getLogger().info("DarkForest 2.0 plugin has been enabled!");
     }

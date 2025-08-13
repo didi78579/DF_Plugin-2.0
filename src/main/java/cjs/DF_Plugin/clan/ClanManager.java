@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 public class ClanManager {
 
     private final DF_Main plugin;
-    private final InviteManager inviteManager;
     private final ClanStorageManager storageManager;
     private final PlayerTagManager playerTagManager;
 
@@ -28,7 +27,6 @@ public class ClanManager {
 
     public ClanManager(DF_Main plugin) {
         this.plugin = plugin;
-        this.inviteManager = new InviteManager(plugin);
         this.storageManager = new ClanStorageManager(plugin);
         this.playerTagManager = new PlayerTagManager(plugin, this);
         loadClans();
@@ -127,9 +125,19 @@ public class ClanManager {
 
     public Clan getClanByName(String name) { return clans.get(name.toLowerCase()); }
     public Clan getClanByPlayer(UUID uuid) { return playerClanMap.get(uuid); }
-    public InviteManager getInviteManager() { return inviteManager; }
     public ClanStorageManager getStorageManager() { return storageManager; }
     public PlayerTagManager getPlayerTagManager() { return playerTagManager; }
+
+    /**
+     * 파일런 위치 문자열로 해당 파일런을 소유한 클랜을 찾습니다.
+     * @param locationStr 직렬화된 위치 문자열
+     * @return 해당 위치에 파일런이 있는 클랜 (Optional)
+     */
+    public Optional<Clan> getClanByPylonLocation(String locationStr) {
+        return clans.values().stream()
+                .filter(clan -> clan.getPylonLocations().contains(locationStr))
+                .findFirst();
+    }
     public Collection<Clan> getClans() { return clans.values(); }
 
     /**
