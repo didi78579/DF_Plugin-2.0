@@ -3,6 +3,7 @@ package cjs.DF_Plugin.offline;
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
 import cjs.DF_Plugin.clan.ClanManager;
+import cjs.DF_Plugin.player.death.PlayerDeathManager;
 import org.bukkit.*;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
@@ -37,11 +38,13 @@ public class OfflinePlayerManager implements Listener {
     private final DF_Main plugin;
     private final File dataFolder;
     public static final NamespacedKey OFFLINE_BODY_KEY = new NamespacedKey(DF_Main.getInstance(), "offline_body_uuid");
+    private final PlayerDeathManager playerDeathManager;
     private final Map<Inventory, UUID> openInventories = new ConcurrentHashMap<>();
     private final Map<UUID, Player> viewingPlayers = new ConcurrentHashMap<>(); // 오프라인 플레이어 UUID -> 현재 GUI를 보고 있는 플레이어
 
     public OfflinePlayerManager(DF_Main plugin) {
         this.plugin = plugin;
+        this.playerDeathManager = plugin.getPlayerDeathManager();
         this.dataFolder = new File(plugin.getDataFolder(), "offline_players");
         if (!dataFolder.exists()) {
             dataFolder.mkdirs();
@@ -52,6 +55,12 @@ public class OfflinePlayerManager implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+
+        // 사망으로 인해 밴(킥)된 플레이어인지 확인합니다.
+        if (playerDeathManager.isDeathBanned(player.getUniqueId())) {
+            return; // 사망 밴 상태의 플레이어는 아바타를 남기지 않습니다.
+        }
+
         saveInventory(player);
         spawnBody(player);
     }
@@ -108,6 +117,12 @@ public class OfflinePlayerManager implements Listener {
 
         // 유리판과의 상호작용을 막습니다.
         if (InventoryGUI.FILLER_PANE.isSimilar(event.getCurrentItem())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // 플레이어 머리(슬롯 0)와의 상호작용을 막습니다.
+        if (event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getTopInventory()) && event.getSlot() == 0) {
             event.setCancelled(true);
             return;
         }

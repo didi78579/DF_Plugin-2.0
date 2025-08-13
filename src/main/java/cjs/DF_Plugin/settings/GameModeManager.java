@@ -17,40 +17,21 @@ public class GameModeManager {
      * @param mode "darkforest", "pylon", "upgrade"
      */
     public void applyPreset(String mode) {
-        configManager.set("game-mode", mode);
-
-        switch (mode.toLowerCase()) {
-            case "darkforest":
-                applyDarkForestPreset();
-                break;
-            case "pylon":
-                applyPylonPreset();
-                break;
-            case "upgrade":
-                applyUpgradePreset();
-                break;
-            default:
-                return; // 유효하지 않은 모드는 무시
+        GameMode gameMode = GameMode.fromString(mode);
+        if (gameMode == null) {
+            plugin.getLogger().warning("'" + mode + "'는 유효하지 않은 게임 모드입니다.");
+            return; // 유효하지 않은 모드는 무시
         }
+
+        applyPreset(gameMode);
+    }
+
+    public void applyPreset(GameMode gameMode) {
+        configManager.getConfig().set("game-mode", gameMode.getKey());
+        configManager.getConfig().set("system-toggles.pylon", gameMode.isPylonEnabled());
+        configManager.getConfig().set("system-toggles.upgrade", gameMode.isUpgradeEnabled());
+        configManager.getConfig().set("system-toggles.events", gameMode.isEventsEnabled());
         // 변경된 모든 설정을 파일에 한 번에 저장
         configManager.save();
-    }
-
-    private void applyDarkForestPreset() {
-        configManager.set("system-toggles.pylon", true);
-        configManager.set("system-toggles.upgrade", true);
-        configManager.set("system-toggles.events", true);
-    }
-
-    private void applyPylonPreset() {
-        configManager.set("system-toggles.pylon", true);
-        configManager.set("system-toggles.upgrade", false);
-        configManager.set("system-toggles.events", false);
-    }
-
-    private void applyUpgradePreset() {
-        configManager.set("system-toggles.pylon", false);
-        configManager.set("system-toggles.upgrade", true);
-        configManager.set("system-toggles.events", false);
     }
 }

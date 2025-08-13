@@ -1,5 +1,7 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
+import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.SuperchargeBowAbility;
@@ -17,7 +19,11 @@ public class BowProfile implements IWeaponProfile {
 
         // 새로운 로어 라인 추가
         if (level > 0) {
-            double healthPercentage = Math.min(1.5 * level, 15.0); // 레벨당 1.5%, 최대 15%
+            GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+            double percentPerLevel = configManager.getConfig().getDouble("upgrade.ability-attributes.supercharge.passive-max-health-damage-percent-per-level", 1.5);
+            double maxPercent = configManager.getConfig().getDouble("upgrade.ability-attributes.supercharge.passive-max-health-damage-max-percent", 15.0);
+
+            double healthPercentage = Math.min(percentPerLevel * level, maxPercent);
             lore.add(ChatColor.BLUE + "적 체력에 비례한 추가 피해: " + String.format("%.1f", healthPercentage) + "%");
         }
     }

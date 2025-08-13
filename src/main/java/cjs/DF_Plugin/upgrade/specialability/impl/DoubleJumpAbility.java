@@ -52,8 +52,8 @@ public class DoubleJumpAbility implements ISpecialAbility {
         }
 
         // 쿨다운이 아니라면, 더블 점프를 실행합니다.
-        double dashVelocityMultiplier = DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-attributes.double_jump.dash-velocity-multiplier", 1.3);
-        double dashYVelocity = DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-attributes.double_jump.dash-y-velocity", 0.5);
+        double dashVelocityMultiplier = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-attributes.double_jump.dash-velocity-multiplier", 1.3);
+        double dashYVelocity = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-attributes.double_jump.dash-y-velocity", 0.5);
 
         player.setVelocity(player.getLocation().getDirection().multiply(dashVelocityMultiplier).setY(dashYVelocity));
         player.playSound(player.getLocation(), Sound.ENTITY_GHAST_SHOOT, 1.0f, 1.0f);
@@ -72,8 +72,7 @@ public class DoubleJumpAbility implements ISpecialAbility {
         // 공격자가 다른 플레이어일 경우에만 쿨다운을 적용합니다.
         if (event.getDamager() instanceof Player) {
             SpecialAbilityManager manager = DF_Main.getInstance().getSpecialAbilityManager();
-            double pvpCooldown = DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-attributes.double_jump.pvp-cooldown-seconds", 30.0);
-
+            double pvpCooldown = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-attributes.double_jump.pvp-cooldown-seconds", 30.0);
             manager.setCooldown(player, this, item, pvpCooldown);
             ActionBarManager.sendActionBar(player, String.format("§c피격으로 인해 §b%s§c 재사용 대기시간이 적용됩니다: §e%d초", ChatColor.stripColor(this.getDisplayName()), (long) pvpCooldown));
         }

@@ -3,40 +3,44 @@ package cjs.DF_Plugin.pylon;
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
 import cjs.DF_Plugin.pylon.beaconinteraction.PylonAreaManager;
-import cjs.DF_Plugin.pylon.beacongui.BeaconGUIManager;
-import cjs.DF_Plugin.pylon.config.PylonConfigManager;
+import cjs.DF_Plugin.pylon.beaconinteraction.PylonStructureManager;
+import cjs.DF_Plugin.pylon.beaconinteraction.registration.AuxiliaryPylonRegistrationManager;
 import cjs.DF_Plugin.pylon.beaconinteraction.registration.BeaconRegistrationManager;
+import cjs.DF_Plugin.pylon.beacongui.BeaconGUIManager;
 import cjs.DF_Plugin.pylon.beacongui.recon.ReconManager;
 import cjs.DF_Plugin.pylon.reinstall.PylonReinstallManager;
 import cjs.DF_Plugin.pylon.retrieval.PylonRetrievalManager;
+import cjs.DF_Plugin.pylon.storage.PylonStorageManager;
 import cjs.DF_Plugin.util.PluginUtils;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import org.bukkit.Location;
 import org.bukkit.scheduler.BukkitRunnable;
-
-import java.util.concurrent.TimeUnit;
 
 public class PylonManager {
 
     private final DF_Main plugin;
     private final BeaconRegistrationManager registrationManager;
+    private final AuxiliaryPylonRegistrationManager auxiliaryRegistrationManager;
     private final PylonAreaManager areaManager;
-    private final PylonConfigManager configManager;
     private final BeaconGUIManager guiManager;
     private final PylonRetrievalManager retrievalManager;
     private final PylonReinstallManager reinstallManager;
     private final ReconManager reconManager;
+    private final PylonStorageManager storageManager;
+    private final PylonStructureManager structureManager;
 
     public PylonManager(DF_Main plugin) {
         this.plugin = plugin;
-        this.configManager = new PylonConfigManager(plugin);
         this.registrationManager = new BeaconRegistrationManager(plugin);
+        this.auxiliaryRegistrationManager = new AuxiliaryPylonRegistrationManager(plugin);
         this.areaManager = new PylonAreaManager(plugin);
         this.guiManager = new BeaconGUIManager(plugin);
         this.retrievalManager = new PylonRetrievalManager(plugin);
         this.reinstallManager = new PylonReinstallManager(plugin);
         this.reconManager = new ReconManager(plugin);
-        startGiftBoxTask();
+        this.storageManager = new PylonStorageManager(plugin);
+        this.structureManager = new PylonStructureManager();
+
+        loadExistingPylons();
         startAreaEffectTask();
         plugin.getLogger().info("PylonManager loaded.");
     }
@@ -45,12 +49,12 @@ public class PylonManager {
         return registrationManager;
     }
 
-    public PylonAreaManager getAreaManager() {
-        return areaManager;
+    public AuxiliaryPylonRegistrationManager getAuxiliaryRegistrationManager() {
+        return auxiliaryRegistrationManager;
     }
 
-    public PylonConfigManager getConfigManager() {
-        return configManager;
+    public PylonAreaManager getAreaManager() {
+        return areaManager;
     }
 
     public BeaconGUIManager getGuiManager() {
@@ -69,25 +73,45 @@ public class PylonManager {
         return reconManager;
     }
 
-    private void startGiftBoxTask() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                long cooldownMillis = TimeUnit.HOURS.toMillis(configManager.getGiftboxCooldownHours());
-                for (Clan clan : plugin.getClanManager().getClans()) {
-                    if (!clan.isGiftBoxReady() && (System.currentTimeMillis() - clan.getLastGiftBoxTime() >= cooldownMillis)) {
-                        clan.setGiftBoxReady(true);
-                        plugin.getClanManager().getStorageManager().saveClan(clan);
+    public PylonStorageManager getStorageManager() {
+        return storageManager;
+    }
 
-                        // Notify the leader if they are online
-                        Player leader = Bukkit.getPlayer(clan.getLeader());
-                        if (leader != null && leader.isOnline()) {
-                            leader.sendMessage(PluginUtils.colorize("&e[선물상자] &a파일런의 선물상자가 보상으로 가득 찼습니다!"));
-                        }
-                    }
+    public PylonStructureManager getStructureManager() {
+        return structureManager;
+    }
+
+    /**
+     * 특정 가문의 모든 파일런 기반(철 블록)을 다시 설치하여 안정화시킵니다.
+     * @param clan 안정화할 가문
+     */
+    public void reinitializeAllBases(Clan clan) {
+        for (String locString : clan.getPylonLocations()) {
+            Location pylonLoc = PluginUtils.deserializeLocation(locString);
+            if (pylonLoc != null) {
+                structureManager.placeBaseOnly(pylonLoc);
+            }
+        }
+        clan.broadcastMessage("§b[파일런] §f모든 파일런 기반이 안정화되었습니다.");
+    }
+
+    /**
+     * 플러그인 활성화 시, 저장된 모든 파일런 정보를 불러와 Area Manager에 등록합니다.
+     * 이를 통해 서버 재시작 후에도 파일런 보호 및 효과가 즉시 적용됩니다.
+     */
+    private void loadExistingPylons() {
+        plugin.getLogger().info("Loading existing pylons...");
+        int count = 0;
+        for (Clan clan : plugin.getClanManager().getAllClans()) {
+            for (String locString : clan.getPylonLocations()) {
+                Location pylonLoc = PluginUtils.deserializeLocation(locString);
+                if (pylonLoc != null && pylonLoc.getWorld() != null) {
+                    areaManager.addProtectedPylon(pylonLoc, clan);
+                    count++;
                 }
             }
-        }.runTaskTimerAsynchronously(plugin, 20L * 60, 20L * 60); // Run every minute
+        }
+        plugin.getLogger().info("Successfully loaded " + count + " existing pylons.");
     }
 
     private void startAreaEffectTask() {

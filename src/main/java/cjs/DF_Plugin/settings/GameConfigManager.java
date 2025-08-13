@@ -1,23 +1,26 @@
 package cjs.DF_Plugin.settings;
 
 import cjs.DF_Plugin.DF_Main;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.Difficulty;
 
 import java.io.File;
 
 public class GameConfigManager {
-
     private final DF_Main plugin;
-    private final FileConfiguration config;
+    private FileConfiguration config;
 
     public GameConfigManager(DF_Main plugin) {
         this.plugin = plugin;
-        this.plugin.saveDefaultConfig(); // resources 폴더의 config.yml을 플러그인 폴더로 복사
-        this.config = plugin.getConfig();
-        loadDefaults();
+        reloadConfig();
     }
 
-    private void loadDefaults() {
+    public void reloadConfig() {
+        plugin.reloadConfig();
+        this.config = plugin.getConfig();
+
+        // 기본값 설정 및 파일에 없는 항목 추가
         config.options().copyDefaults(true);
         plugin.saveConfig();
     }
@@ -26,17 +29,10 @@ public class GameConfigManager {
         return config;
     }
 
-    public void set(String path, Object value) {
-        config.set(path, value);
-    }
-
     public void save() {
         plugin.saveConfig();
     }
 
-    /**
-     * 모든 설정을 config.yml의 기본값으로 초기화합니다.
-     */
     public void resetToDefaults() {
         File configFile = new File(plugin.getDataFolder(), "config.yml");
         if (configFile.exists()) {
@@ -46,19 +42,59 @@ public class GameConfigManager {
             }
         }
         plugin.saveDefaultConfig();
-        plugin.reloadConfig(); // 새 기본 설정 파일을 메모리로 다시 로드
+        reloadConfig();
     }
 
-    // 각 시스템의 활성화 여부를 쉽게 확인할 수 있는 헬퍼 메소드
-    public boolean isPylonSystemEnabled() {
-        return config.getBoolean("system-toggles.pylon", true);
+    // --- Pylon Getters ---
+    public int getPylonMaxPerClan() { return config.getInt("pylon.max-pylons-per-clan", 1); }
+    public boolean isPylonRequireBelowSeaLevel() { return config.getBoolean("pylon.installation.require-below-sea-level", true); }
+    public boolean isPylonAllyBuffEnabled() { return config.getBoolean("pylon.area-effects.ally-buff-enabled", true); }
+    public boolean isPylonEnemyDebuffEnabled() { return config.getBoolean("pylon.area-effects.enemy-debuff-enabled", true); }
+    public String getPylonRecruitmentMode() { return config.getString("pylon.recruitment.mode", "select"); }
+    public int getPylonRecruitCostPerMember() { return config.getInt("pylon.recruitment.cost-per-member", 64); }
+    public boolean isPylonDeathBanEnabled() { return config.getBoolean("pylon.death-ban.enabled", true); }
+    public int getPylonDeathBanDurationMinutes() {return getConfig().getInt("pylon.death-ban.duration-minutes", 60);}    public int getPylonResurrectionCostPerMinute() { return config.getInt("pylon.death-ban.resurrection-cost-per-minute", 1); }
+    public int getPylonRetrievalCooldownHours() { return config.getInt("pylon.retrieval.cooldown-hours", 24); }
+    public int getPylonReinstallDurationHours() { return config.getInt("pylon.retrieval.reinstall-duration-hours", 2); }
+    public boolean isPylonReconEnabled() { return config.getBoolean("pylon.recon-firework.enabled", true); }
+    public int getPylonReconCooldownHours() { return config.getInt("pylon.recon-firework.cooldown-hours", 12); }
+    public int getPylonReconReturnMinutes() { return config.getInt("pylon.recon-firework.return-duration-minutes", 1); }
+    public int getPylonGiftboxCooldownHours() { return config.getInt("pylon.giftbox.cooldown-hours", 4); }
+    public int getPylonGiftboxMinSets() { return config.getInt("pylon.giftbox.min-reward-sets", 4); }
+    public int getPylonGiftboxMaxSets() { return config.getInt("pylon.giftbox.max-reward-sets", 8); }
+    public int getReturnScrollCastTime() { return config.getInt("pylon.return-scroll.cast-time-seconds", 5); }
+    public boolean isReturnScrollAllowedInNether() { return config.getBoolean("pylon.return-scroll.allow-in-nether", true); }
+    public boolean isReturnScrollAllowedInEnd() { return config.getBoolean("pylon.return-scroll.allow-in-end", true); }
+    public int getPylonAreaEffectRadius() { return config.getInt("pylon.area-effects.radius", 50); }
+
+    // --- Clan Getters ---
+    public int getClanMaxMembers() { return config.getInt("pylon.recruitment.max-members", 4); }
+
+    // --- Upgrade System Getters ---
+    public boolean isUpgradeShowSuccessChance() { return config.getBoolean("upgrade.show-success-chance", true); }
+    public ConfigurationSection getUpgradeLevelSettings() { return config.getConfigurationSection("upgrade.level-settings"); }
+
+    // --- World & Game Rules Getters ---
+    public boolean isWorldRuleKeepInventory() { return config.getBoolean("world.rules.keep-inventory", true); }
+    public boolean isWorldRuleTotemEnabled() { return config.getBoolean("world.rules.totem-enabled", false); }
+    public boolean isWorldRuleLocationInfoDisabled() { return config.getBoolean("world.rules.location-info-disabled", true); }
+    public boolean isWorldRulePhantomDisabled() { return config.getBoolean("world.rules.phantom-disabled", true); }
+    public Difficulty getWorldDifficulty() {
+        String difficultyName = config.getString("world.rules.difficulty", "HARD").toUpperCase();
+        try {
+            return Difficulty.valueOf(difficultyName);
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().warning("Invalid difficulty '" + difficultyName + "' in config.yml. Defaulting to HARD.");
+            return Difficulty.HARD;
+        }
     }
 
-    public boolean isUpgradeSystemEnabled() {
-        return config.getBoolean("system-toggles.upgrade", true);
-    }
+    public double getWorldBorderOverworldSize() { return config.getDouble("world.border.overworld-size", 20000); }
+    public boolean isWorldBorderEndEnabled() { return config.getBoolean("world.border.end-enabled", true); }
+    public double getWorldBorderEndSize() { return config.getDouble("world.border.end-size", 1000); }
 
-    public boolean isEventSystemEnabled() {
-        return config.getBoolean("system-toggles.events", true);
-    }
+
+    // --- Utility Getters ---
+    public boolean isClanChatPrefixEnabled() { return config.getBoolean("utility.clan-chat-prefix-enabled", true); }
+    public boolean isKillLogEnabled() { return config.getBoolean("utility.kill-log-enabled", true); }
 }

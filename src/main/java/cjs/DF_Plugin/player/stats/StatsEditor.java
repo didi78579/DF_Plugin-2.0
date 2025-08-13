@@ -1,18 +1,20 @@
 package cjs.DF_Plugin.player.stats;
 
-import cjs.DF_Plugin.util.ItemBuilder;
+import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.items.ItemBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class StatsEditor {
 
     public static final String GUI_TITLE_PREFIX = "스탯 평가: ";
+    // GUI 버튼 식별을 위한 키
+    public static final NamespacedKey STATS_ACTION_KEY = new NamespacedKey(DF_Main.getInstance(), "stats_action");
+    public static final NamespacedKey STATS_TYPE_KEY = new NamespacedKey(DF_Main.getInstance(), "stats_type");
 
     public static Inventory create(Player target, PlayerStats stats) {
         Inventory inv = Bukkit.createInventory(null, 54, GUI_TITLE_PREFIX + target.getName());
@@ -36,7 +38,7 @@ public class StatsEditor {
         inv.setItem(8, new ItemBuilder(Material.WRITABLE_BOOK)
                 .withName("§a저장하기")
                 .withLore("§7클릭하여 현재 스탯을 저장합니다.")
-                .withPDCString(StatsListener.STATS_ACTION_KEY, "SAVE").build());
+                .withPDCString(STATS_ACTION_KEY, "SAVE").build());
 
         return inv;
     }
@@ -60,11 +62,11 @@ public class StatsEditor {
 
         // 증감 버튼
         inv.setItem(startSlot + 7, new ItemBuilder(Material.LIME_DYE).withName("§a+")
-                .withPDCString(StatsListener.STATS_ACTION_KEY, "INCREMENT")
-                .withPDCString(StatsListener.STATS_TYPE_KEY, type.name()).build());
+                .withPDCString(STATS_ACTION_KEY, "INCREMENT")
+                .withPDCString(STATS_TYPE_KEY, type.name()).build());
         inv.setItem(startSlot + 8, new ItemBuilder(Material.RED_DYE).withName("§c-")
-                .withPDCString(StatsListener.STATS_ACTION_KEY, "DECREMENT")
-                .withPDCString(StatsListener.STATS_TYPE_KEY, type.name()).build());
+                .withPDCString(STATS_ACTION_KEY, "DECREMENT")
+                .withPDCString(STATS_TYPE_KEY, type.name()).build());
     }
 
     public static String getStars(int level) {

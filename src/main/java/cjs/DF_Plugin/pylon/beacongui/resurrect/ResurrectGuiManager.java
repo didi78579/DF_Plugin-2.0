@@ -2,7 +2,7 @@ package cjs.DF_Plugin.pylon.beacongui.resurrect;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
-import cjs.DF_Plugin.pylon.beacongui.BeaconGUIListener;
+import cjs.DF_Plugin.pylon.beacongui.BeaconGUIManager;
 import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -60,18 +60,15 @@ public class ResurrectGuiManager {
         SkullMeta meta = (SkullMeta) head.getItemMeta();
 
         long deathTime = plugin.getPlayerDeathManager().getDeadPlayers().get(deadPlayer.getUniqueId());
-        int banDurationHours = plugin.getPylonManager().getConfigManager().getDeathBanDurationHours();
-        long banEndTime = deathTime + TimeUnit.HOURS.toMillis(banDurationHours);
+        int banDurationMinutes = plugin.getGameConfigManager().getPylonDeathBanDurationMinutes();
+        long banEndTime = deathTime + TimeUnit.MINUTES.toMillis(banDurationMinutes);
         long remainingMillis = Math.max(0, banEndTime - System.currentTimeMillis());
 
         long remainingMinutes = TimeUnit.MILLISECONDS.toMinutes(remainingMillis);
-        int costPerMinute = plugin.getPylonManager().getConfigManager().getResurrectionCostPerMinute();
+        int costPerMinute = plugin.getGameConfigManager().getPylonResurrectionCostPerMinute();
         long totalCost = remainingMinutes * costPerMinute;
 
-        String remainingTime = String.format("%02d시간 %02d분",
-                TimeUnit.MILLISECONDS.toHours(remainingMillis),
-                remainingMinutes % 60
-        );
+        String remainingTime = PluginUtils.formatTime(remainingMillis);
 
         meta.setOwningPlayer(deadPlayer);
         meta.setDisplayName("§c" + deadPlayer.getName());
@@ -81,15 +78,18 @@ public class ResurrectGuiManager {
                 "§f남은 시간: §e" + remainingTime,
                 "§f부활 비용: §2에메랄드 " + totalCost + "개"
         ));
-        meta.getPersistentDataContainer().set(BeaconGUIListener.GUI_BUTTON_KEY, PersistentDataType.STRING, "resurrect_player:" + deadPlayer.getUniqueId());
+        meta.getPersistentDataContainer().set(BeaconGUIManager.GUI_BUTTON_KEY, PersistentDataType.STRING, "resurrect_player:" + deadPlayer.getUniqueId());
         head.setItemMeta(meta);
         return head;
     }
 
     public void handleGuiClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
-        ItemMeta meta = event.getCurrentItem().getItemMeta();
-        String actionData = meta.getPersistentDataContainer().get(BeaconGUIListener.GUI_BUTTON_KEY, PersistentDataType.STRING);
+        ItemStack clickedItem = event.getCurrentItem();
+        if (clickedItem == null || !clickedItem.hasItemMeta()) return;
+
+        ItemMeta meta = clickedItem.getItemMeta();
+        String actionData = meta.getPersistentDataContainer().get(BeaconGUIManager.GUI_BUTTON_KEY, PersistentDataType.STRING);
 
         if (actionData == null || !actionData.startsWith("resurrect_player:")) return;
 
@@ -98,11 +98,11 @@ public class ResurrectGuiManager {
 
         // Calculate cost again to be safe
         long deathTime = plugin.getPlayerDeathManager().getDeadPlayers().get(targetUUID);
-        int banDurationHours = plugin.getPylonManager().getConfigManager().getDeathBanDurationHours();
-        long banEndTime = deathTime + TimeUnit.HOURS.toMillis(banDurationHours);
+        int banDurationMinutes = plugin.getGameConfigManager().getPylonDeathBanDurationMinutes();
+        long banEndTime = deathTime + TimeUnit.MINUTES.toMillis(banDurationMinutes);
         long remainingMillis = Math.max(0, banEndTime - System.currentTimeMillis());
         long remainingMinutes = TimeUnit.MILLISECONDS.toMinutes(remainingMillis);
-        int costPerMinute = plugin.getPylonManager().getConfigManager().getResurrectionCostPerMinute();
+        int costPerMinute = plugin.getGameConfigManager().getPylonResurrectionCostPerMinute();
         long totalCost = remainingMinutes * costPerMinute;
 
         if (!player.getInventory().contains(Material.EMERALD, (int) totalCost)) {

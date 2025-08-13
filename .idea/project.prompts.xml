@@ -6,7 +6,7 @@
         <BuiltInPromptOverride>
           <option name="groupId" value="rules" />
           <option name="promptId" value="project" />
-          <option name="text" value="한국어로 답할것&#10;&#10;내프로젝트가 있는 &#10;https://github.com/didi78579/DF_Plugin-2.0&#10;를 상시로 확인 할것    " />
+          <option name="text" value="한국어로 답할것&#10;&#10;내프로젝트가 있는 &#10;https://github.com/didi78579/DF_Plugin-2.0&#10;를 상시로 확인 할것    &#10;    &#10;또한 코드를 나한테 제안시 반드시 복사 또는 자동 수락이 확성화 되도록 " />
         </BuiltInPromptOverride>
       </list>
     </option>

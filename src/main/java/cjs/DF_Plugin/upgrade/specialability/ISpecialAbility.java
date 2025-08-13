@@ -29,4 +29,5 @@ public interface ISpecialAbility {
     default void onPlayerFish(org.bukkit.event.player.PlayerFishEvent event, Player player, ItemStack item) {}
     default void onPlayerToggleSneak(PlayerToggleSneakEvent event, Player player, ItemStack item) {}
 
+    default void onCleanup(Player player) {}
 }

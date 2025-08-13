@@ -1,41 +1,38 @@
 package cjs.DF_Plugin.player.stats;
 
 import cjs.DF_Plugin.DF_Main;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.Bukkit;
+
+import static cjs.DF_Plugin.player.stats.StatsEditor.STATS_ACTION_KEY;
+import static cjs.DF_Plugin.player.stats.StatsEditor.STATS_TYPE_KEY;
 
 public class StatsListener implements Listener {
 
-    private final StatsManager statsManager;
+    private final DF_Main plugin;
 
-    // GUI 버튼의 동작과 타입을 식별하기 위한 키
-    public static final NamespacedKey STATS_ACTION_KEY = new NamespacedKey(DF_Main.getInstance(), "stats_action");
-    public static final NamespacedKey STATS_TYPE_KEY = new NamespacedKey(DF_Main.getInstance(), "stats_type");
-
-    public StatsListener(StatsManager statsManager) {
-        this.statsManager = statsManager;
+    public StatsListener(DF_Main plugin) {
+        this.plugin = plugin;
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().startsWith(StatsEditor.GUI_TITLE_PREFIX)) {
-            return;
-        }
+        if (!event.getView().getTitle().startsWith(StatsEditor.GUI_TITLE_PREFIX)) return;
 
         event.setCancelled(true);
 
-        Player editor = (Player) event.getWhoClicked();
-        ItemStack clickedItem = event.getCurrentItem();
+        if (!(event.getWhoClicked() instanceof Player editor)) return;
 
+        ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null || clickedItem.getType() == Material.AIR || !clickedItem.hasItemMeta()) {
             return;
         }
@@ -48,6 +45,7 @@ public class StatsListener implements Listener {
             return;
         }
 
+        StatsManager statsManager = plugin.getStatsManager();
         String targetName = event.getView().getTitle().replace(StatsEditor.GUI_TITLE_PREFIX, "");
         Player target = Bukkit.getPlayerExact(targetName);
         if (target == null) {
@@ -61,7 +59,8 @@ public class StatsListener implements Listener {
 
         switch (action) {
             case "SAVE":
-                statsManager.saveStats();
+                // 현재 GUI에서 보고 있는 플레이어의 스탯을 저장합니다.
+                statsManager.savePlayerStats(target.getUniqueId());
                 editor.sendMessage("§a" + target.getName() + "님의 스탯을 저장했습니다.");
                 editor.closeInventory();
                 break;
@@ -81,6 +80,20 @@ public class StatsListener implements Listener {
                     editor.sendMessage("§c내부 오류가 발생했습니다. (Invalid StatType)");
                 }
                 break;
+        }
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player victim = event.getEntity();
+        plugin.getStatsManager().incrementDeaths(victim.getUniqueId());
+
+        Player killer = victim.getKiller();
+        if (killer != null) {
+            plugin.getStatsManager().incrementKills(killer.getUniqueId());
+            if (!plugin.getGameConfigManager().isKillLogEnabled()) {
+                event.setDeathMessage(null);
+            }
         }
     }
 }

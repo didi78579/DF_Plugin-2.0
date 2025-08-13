@@ -5,6 +5,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 
+import java.util.concurrent.TimeUnit;
+
 public final class PluginUtils {
 
     private PluginUtils() {
@@ -54,6 +56,25 @@ public final class PluginUtils {
             return new Location(w, x, y, z);
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    /**
+     * 밀리초 단위의 시간을 "X시간 Y분" 또는 "Y분 Z초"와 같이 읽기 쉬운 형식으로 변환합니다.
+     * @param millis 변환할 시간 (밀리초)
+     * @return 형식화된 시간 문자열
+     */
+    public static String formatTime(long millis) {
+        long hours = TimeUnit.MILLISECONDS.toHours(millis);
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60;
+        long seconds = TimeUnit.MILLISECONDS.toSeconds(millis) % 60;
+
+        if (hours > 0) {
+            return String.format("%d시간 %d분", hours, minutes);
+        } else if (minutes > 0) {
+            return String.format("%d분 %d초", minutes, seconds);
+        } else {
+            return String.format("%d초", seconds);
         }
     }
 }

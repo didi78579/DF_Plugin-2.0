@@ -39,9 +39,29 @@ public class ActionBarManager {
         List<String> parts = new ArrayList<>();
         long currentTime = System.currentTimeMillis();
 
-        Map<String, SpecialAbilityManager.CooldownInfo> cooldowns = specialAbilityManager.getPlayerCooldowns(player.getUniqueId());
+        // 충전량이 있는 능력을 먼저 표시
+        Map<String, SpecialAbilityManager.ChargeInfo> charges = specialAbilityManager.getPlayerCharges(player.getUniqueId());
+        if (charges != null) {
+            for (Map.Entry<String, SpecialAbilityManager.ChargeInfo> entry : charges.entrySet()) {
+                SpecialAbilityManager.ChargeInfo info = entry.getValue();
 
-        // 쿨다운 정보 표시
+                // 점(dot) 형태로 충전량 시각화
+                StringBuilder chargeDisplay = new StringBuilder();
+                chargeDisplay.append("§a"); // 사용 가능한 횟수는 녹색
+                for (int i = 0; i < info.current(); i++) {
+                    chargeDisplay.append("●");
+                }
+                chargeDisplay.append("§7"); // 사용한 횟수는 회색
+                for (int i = 0; i < info.max() - info.current(); i++) {
+                    chargeDisplay.append("○");
+                }
+
+                parts.add(String.format("%s %s", info.displayName(), chargeDisplay.toString()));
+            }
+        }
+
+        // 전체 쿨다운 중인 능력을 나중에 표시
+        Map<String, SpecialAbilityManager.CooldownInfo> cooldowns = specialAbilityManager.getPlayerCooldowns(player.getUniqueId());
         if (cooldowns != null) {
             cooldowns.entrySet().removeIf(entry -> entry.getValue().endTime() <= currentTime);
             for (Map.Entry<String, SpecialAbilityManager.CooldownInfo> entry : cooldowns.entrySet()) {
@@ -49,7 +69,8 @@ public class ActionBarManager {
                 long timeLeft = info.endTime() - currentTime;
                 if (timeLeft > 0) {
                     long secondsLeft = (timeLeft + 999) / 1000;
-                    parts.add(String.format("%s §e%d초", info.displayName(), secondsLeft));
+                    // 쿨타임은 회색으로 표시
+                    parts.add(String.format("%s §7%d초", info.displayName(), secondsLeft));
                 }
             }
         }

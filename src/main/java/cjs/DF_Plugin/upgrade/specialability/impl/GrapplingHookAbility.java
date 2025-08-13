@@ -5,7 +5,9 @@ import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -41,15 +43,14 @@ public class GrapplingHookAbility implements ISpecialAbility {
     @Override
     public double getCooldown() {
         // 이 쿨다운은 모든 충전량을 소모했을 때만 적용됩니다.
-        return DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-cooldowns.grappling_hook", 120.0);
-    }
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-cooldowns.grappling_hook", 120.0);    }
 
     @Override
     public void onPlayerInteract(PlayerInteractEvent event, Player player, ItemStack item) {
         // 이미 훅이 고정된 상태라면, 다시 발사하지 않고 취소합니다.
         if (latchedHooks.containsKey(player.getUniqueId())) {
             latchedHooks.remove(player.getUniqueId());
-            player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 0.7f, 1.2f);
+            player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 0.7f, 1.2f); // 훅 회수 사운드
             return;
         }
 
@@ -77,9 +78,8 @@ public class GrapplingHookAbility implements ISpecialAbility {
 
         // 훅 고정 성공
         latchedHooks.put(player.getUniqueId(), targetLocation);
-        player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 1.0f);
-        player.playSound(targetLocation, Sound.BLOCK_CHAIN_HIT, 1.0f, 1.2f);
-        player.playSound(player.getLocation(), Sound.BLOCK_CHAIN_HIT, 0.8f, 1.5f);
+        // "철컥" 하는 사운드
+        player.playSound(targetLocation, Sound.BLOCK_CHAIN_HIT, 1.0f, 1.2f); // 훅이 걸린 위치에서 나는 소리
     }
 
     // 이 메서드는 SpecialAbilityListener의 onPlayerToggleSneak에서 호출됩니다.
@@ -122,9 +122,16 @@ public class GrapplingHookAbility implements ISpecialAbility {
     }
 
     private void performGrappling(Player player, Location targetLocation) {
+        // 이펙트 추가
+        drawParticleLine(player.getEyeLocation(), targetLocation);
+
+        // 당기기 시작 사운드 ("낚시찌 던지기")
+        player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 0.8f);
+
         Vector velocity = targetLocation.toVector().subtract(player.getLocation().toVector()).normalize().multiply(2.5);
         player.setVelocity(velocity);
-        player.playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.0f, 1.2f);
+        // 이동 중 사운드 ("블레이즈 화염구")
+        player.playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 0.8f, 1.2f);
     }
 
     private Location findTargetLocation(Location start, Vector direction, double maxDistance) {
@@ -135,5 +142,22 @@ public class GrapplingHookAbility implements ISpecialAbility {
             }
         }
         return null;
+    }
+
+    private void drawParticleLine(Location start, Location end) {
+        World world = start.getWorld();
+        if (world == null) return;
+
+        Vector direction = end.toVector().subtract(start.toVector());
+        double distance = direction.length();
+        if (distance < 1) return;
+        direction.normalize();
+
+        // 0.4 블록 간격으로 파티클을 생성합니다.
+        for (double i = 0; i < distance; i += 0.4) {
+            Location particleLoc = start.clone().add(direction.clone().multiply(i));
+            world.spawnParticle(Particle.CRIT, particleLoc, 1, 0, 0, 0, 0);
+        }
+        world.spawnParticle(Particle.ENCHANT, end, 30, 0.5, 0.5, 0.5, 0.1);
     }
 }

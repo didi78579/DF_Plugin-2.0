@@ -2,13 +2,15 @@ package cjs.DF_Plugin.upgrade.specialability.impl;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.actionbar.ActionBarManager;
-import cjs.DF_Plugin.upgrade.setting.UpgradeSettingManager;
+import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -26,8 +28,6 @@ import org.bukkit.entity.AbstractArrow;
 
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 public class VoidRiptideAbility implements ISpecialAbility {
 
     @Override
@@ -41,13 +41,13 @@ public class VoidRiptideAbility implements ISpecialAbility {
 
     @Override
     public double getCooldown() {
-        return DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-cooldowns.void_riptide", 30.0);
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-cooldowns.void_riptide", 5.0);
     }
 
     @Override
     public void onPlayerInteract(PlayerInteractEvent event, Player player, ItemStack item) {
-        UpgradeSettingManager settings = DF_Main.getInstance().getUpgradeSettingManager();
-        int requiredLevel = settings.getConfig().getInt("ability-attributes.void_riptide.required-level", 10);
+        GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+        int requiredLevel = configManager.getConfig().getInt("upgrade.ability-attributes.void_riptide.required-level", 10);
         int level = getLevelFromLore(item.getItemMeta().getLore());
         if (level < requiredLevel) return; // 설정된 레벨 전용 능력
 
@@ -58,7 +58,7 @@ public class VoidRiptideAbility implements ISpecialAbility {
             return;
         }
 
-        new AbilityWaterBlock(player, DF_Main.getInstance()).startWater();
+        createTemporaryWaterBlock(player);
         ActionBarManager.sendActionBar(player, "§b허공 급류 발동!");
         manager.setCooldown(player, this, item);
     }
@@ -75,8 +75,8 @@ public class VoidRiptideAbility implements ISpecialAbility {
     public void onPlayerRiptide(PlayerRiptideEvent event, Player player, ItemStack item) {
         int level = getLevelFromLore(item.getItemMeta().getLore());
         if (level > 0) {
-            UpgradeSettingManager settings = DF_Main.getInstance().getUpgradeSettingManager();
-            double velocityMultiplier = settings.getConfig().getDouble("ability-attributes.void_riptide.riptide-velocity-multiplier", 2.0);
+            GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+            double velocityMultiplier = configManager.getConfig().getDouble("upgrade.ability-attributes.void_riptide.riptide-velocity-multiplier", 2.0);
             launchAdditionalTridents(player, level, player.getLocation(), player.getLocation().getDirection().multiply(velocityMultiplier));
         }
     }
@@ -92,17 +92,17 @@ public class VoidRiptideAbility implements ISpecialAbility {
 
         // 이 메서드는 Listener에 의해 Trident가 엔티티를 맞췄을 때 호출됩니다. 'player'는 투척자입니다.
         int level = getLevelFromLore(item.getItemMeta().getLore());
-        UpgradeSettingManager settings = DF_Main.getInstance().getUpgradeSettingManager();
+        GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
 
         // 레벨 1 이상: 둔화 효과
         if (level >= 1 && event.getEntity() instanceof LivingEntity victim) {
-            int duration = (int) (settings.getConfig().getDouble("ability-attributes.void_riptide.slowness-duration-seconds", 3.0) * 20);
-            int amplifier = settings.getConfig().getInt("ability-attributes.void_riptide.slowness-level", 2) - 1;
+            int duration = (int) (configManager.getConfig().getDouble("upgrade.ability-attributes.void_riptide.slowness-duration-seconds", 3.0) * 20);
+            int amplifier = configManager.getConfig().getInt("upgrade.ability-attributes.void_riptide.slowness-level", 2) - 1;
             victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, duration, amplifier));
         }
 
         // 레벨 10: 투사체 면역 및 회수 불가
-        int requiredLevel = settings.getConfig().getInt("ability-attributes.void_riptide.required-level", 10);
+        int requiredLevel = configManager.getConfig().getInt("upgrade.ability-attributes.void_riptide.required-level", 10);
         if (level >= requiredLevel && event.getDamager() instanceof Trident trident) {
             trident.setPickupStatus(AbstractArrow.PickupStatus.CREATIVE_ONLY);
         }
@@ -112,9 +112,9 @@ public class VoidRiptideAbility implements ISpecialAbility {
         World world = player.getWorld();
         Random random = new Random();
 
-        UpgradeSettingManager settings = DF_Main.getInstance().getUpgradeSettingManager();
-        double spreadRadius = settings.getConfig().getDouble("ability-attributes.void_riptide.spread-radius", 3.0);
-        double spreadVelocity = settings.getConfig().getDouble("ability-attributes.void_riptide.spread-velocity-multiplier", 0.1);
+        GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+        double spreadRadius = configManager.getConfig().getDouble("upgrade.ability-attributes.void_riptide.spread-radius", 3.0);
+        double spreadVelocity = configManager.getConfig().getDouble("upgrade.ability-attributes.void_riptide.spread-velocity-multiplier", 0.1);
 
         new BukkitRunnable() {
             @Override
@@ -135,7 +135,6 @@ public class VoidRiptideAbility implements ISpecialAbility {
         }.runTaskLater(DF_Main.getInstance(), 1L); // 약간의 딜레이를 주어 동시 발사 문제를 회피
     }
 
-
     private int getLevelFromLore(List<String> lore) {
         if (lore == null) return 0;
         for (String line : lore) {
@@ -146,5 +145,21 @@ public class VoidRiptideAbility implements ISpecialAbility {
             }
         }
         return 0;
+    }
+
+    /**
+     * 플레이어의 위치에 1초간 물을 생성합니다.
+     * @param player 대상 플레이어
+     */
+    private void createTemporaryWaterBlock(Player player) {
+        Location loc = player.getLocation();
+        Block block = loc.getBlock();
+
+        if (block.getType() == Material.AIR) {
+            block.setType(Material.WATER);
+            new BukkitRunnable() {
+                public void run() { if (block.getType() == Material.WATER) block.setType(Material.AIR); }
+            }.runTaskLater(DF_Main.getInstance(), 20L); // 1초 후 물 제거
+        }
     }
 }

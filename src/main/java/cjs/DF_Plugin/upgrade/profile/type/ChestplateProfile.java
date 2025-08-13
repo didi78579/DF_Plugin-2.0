@@ -28,7 +28,7 @@ public class ChestplateProfile implements IWeaponProfile {
         applyBaseArmorAttributes(item.getType(), meta);
 
         // 3. 새로운 강화 속성(체력)을 계산하고 적용합니다.
-        double valuePerLevel = DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("attribute-bonuses.chestplate.health-per-level", 0.0);
+        double valuePerLevel = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.attribute-bonuses.chestplate.health-per-level", 0.0);
         double totalValue = valuePerLevel * level;
         if (totalValue > 0) {
             AttributeModifier mod = new AttributeModifier(UUID.randomUUID(), ATTRIBUTE_NAME, totalValue, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlotGroup.CHEST);

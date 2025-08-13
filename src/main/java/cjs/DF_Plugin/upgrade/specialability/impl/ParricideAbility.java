@@ -20,7 +20,7 @@ public class ParricideAbility implements ISpecialAbility {
 
     @Override
     public String getDisplayName() {
-        return "§c패륜";
+        return "§c번개 강타";
     }
 
     @Override
@@ -37,7 +37,6 @@ public class ParricideAbility implements ISpecialAbility {
     public void onDamageByEntity(EntityDamageByEntityEvent event, Player player, ItemStack item) {
         SpecialAbilityManager manager = DF_Main.getInstance().getSpecialAbilityManager();
         if (manager.isAbilityOnCooldown(player, this, item)) {
-            ActionBarManager.sendActionBar(player, String.format("§c%s 재사용 대기시간: %.1f초", this.getDisplayName(), manager.getRemainingCooldown(player, this, item) / 1000.0));
             return;
         }
         if (!(event.getEntity() instanceof LivingEntity target)) return;

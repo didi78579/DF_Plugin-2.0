@@ -26,8 +26,7 @@ public class RegenerationAbility implements ISpecialAbility {
 
     @Override
     public double getCooldown() {
-        return DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-cooldowns.regeneration", 5.0);
-    }
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-cooldowns.regeneration", 5.0);    }
 
     @Override
     public void onPlayerMove(PlayerMoveEvent event, Player player, ItemStack item) {

@@ -1,6 +1,7 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
 import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.LaserShotAbility;
@@ -17,8 +18,8 @@ public class CrossbowProfile implements IWeaponProfile {
         lore.removeIf(line -> line.contains("고정 추가 데미지:"));
 
         if (level > 0) {
-            UpgradeSettingManager settings = DF_Main.getInstance().getUpgradeSettingManager();
-            double damagePerLevel = settings.getConfig().getDouble("ability-attributes.laser_shot.passive-damage-per-level", 0.5);
+            GameConfigManager settings = DF_Main.getInstance().getGameConfigManager();
+            double damagePerLevel = settings.getConfig().getDouble("upgrade.ability-attributes.laser_shot.passive-damage-per-level", 0.5);
             double totalBonusDamage = damagePerLevel * level;
             lore.add(ChatColor.BLUE + "고정 추가 데미지: +" + String.format("%.1f", totalBonusDamage));
         }

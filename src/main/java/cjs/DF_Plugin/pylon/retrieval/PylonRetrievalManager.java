@@ -2,12 +2,19 @@ package cjs.DF_Plugin.pylon.retrieval;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
-import cjs.DF_Plugin.pylon.beaconinteraction.PylonItemListener;
+import cjs.DF_Plugin.pylon.PylonType;
+import cjs.DF_Plugin.pylon.item.PylonItemFactory;
+import cjs.DF_Plugin.util.InventoryUtils;
 import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class PylonRetrievalManager {
@@ -18,41 +25,89 @@ public class PylonRetrievalManager {
         this.plugin = plugin;
     }
 
-    public void retrievePylon(Player player) {
-        Clan clan = plugin.getClanManager().getClanByPlayer(player.getUniqueId());
-        if (clan == null || !clan.getLeader().equals(player.getUniqueId())) {
-            player.sendMessage(PREFIX + "§c파일런 회수는 가문 대표만 가능합니다.");
+    /**
+     * 가문 대표가 파일런을 회수하는 로직을 실행합니다.
+     * 모든 파일런을 제거하고 아이템을 지급하며, 쿨타임 및 재설치 타이머를 적용합니다.
+     * @param leader 가문 대표
+     */
+    public void executePylonRetrieval(Player leader) {
+        Clan clan = plugin.getClanManager().getClanByPlayer(leader.getUniqueId());
+        if (clan == null || !clan.getLeader().equals(leader.getUniqueId())) {
+            leader.sendMessage(PREFIX + "§c파일런 회수는 가문 대표만 가능합니다.");
             return;
         }
 
         if (clan.getPylonLocations().isEmpty()) {
-            player.sendMessage(PREFIX + "§c회수할 파일런이 없습니다.");
+            leader.sendMessage(PREFIX + "§c회수할 파일런이 없습니다.");
             return;
         }
 
-        long cooldownMillis = TimeUnit.HOURS.toMillis(plugin.getPylonManager().getConfigManager().getRetrievalCooldownHours());
+        long cooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getPylonRetrievalCooldownHours());
         if (System.currentTimeMillis() - clan.getLastRetrievalTime() < cooldownMillis) {
             long remainingMillis = cooldownMillis - (System.currentTimeMillis() - clan.getLastRetrievalTime());
             String remainingTime = String.format("%02d시간 %02d분",
                     TimeUnit.MILLISECONDS.toHours(remainingMillis),
                     TimeUnit.MILLISECONDS.toMinutes(remainingMillis) % 60);
-            player.sendMessage(PREFIX + "§c다음 회수까지 " + remainingTime + " 남았습니다.");
+            leader.sendMessage(PREFIX + "§c다음 회수까지 " + remainingTime + " 남았습니다.");
             return;
         }
 
-        String pylonLocStr = clan.getPylonLocations().iterator().next();
-        Location pylonLoc = PluginUtils.deserializeLocation(pylonLocStr);
+        List<ItemStack> pylonItems = new ArrayList<>();
+        // Make a copy to avoid ConcurrentModificationException
+        Map<String, PylonType> pylonLocations = clan.getPylonLocationsMap();
 
-        if (pylonLoc != null && pylonLoc.getBlock().getType() == Material.BEACON) pylonLoc.getBlock().setType(Material.AIR);
+        for (Map.Entry<String, PylonType> entry : pylonLocations.entrySet()) {
+            String pylonLocStr = entry.getKey();
+            PylonType pylonType = entry.getValue();
 
-        clan.getPylonLocations().remove(pylonLocStr);
+            Location pylonLoc = PluginUtils.deserializeLocation(pylonLocStr);
+            if (pylonLoc != null && pylonLoc.getBlock().getType() == Material.BEACON) {
+                pylonLoc.getBlock().setType(Material.AIR);
+                plugin.getPylonManager().getStructureManager().removeBaseAndBarrier(pylonLoc);
+                plugin.getPylonManager().getAreaManager().removeProtectedPylon(pylonLoc);
+            }
+
+            if (pylonType == PylonType.MAIN_CORE) {
+                pylonItems.add(PylonItemFactory.createMainCore());
+            } else {
+                pylonItems.add(PylonItemFactory.createAuxiliaryCore());
+            }
+        }
+
+        clan.clearPylonLocations();
         clan.setLastRetrievalTime(System.currentTimeMillis());
         plugin.getClanManager().getStorageManager().saveClan(clan);
 
-        player.getInventory().addItem(PylonItemListener.createPylonItem());
-        player.sendMessage(PREFIX + "§a파일런을 회수했습니다.");
+        InventoryUtils.giveOrDropItems(leader, pylonItems.toArray(new ItemStack[0]));
+        leader.sendMessage(PREFIX + "§a모든 파일런(" + pylonItems.size() + "개)을 회수했습니다.");
+        plugin.getPylonManager().getReinstallManager().startReinstallTimer(leader);
+    }
 
-        plugin.getPylonManager().getReinstallManager().startReinstallTimer(player);
-        player.closeInventory();
+    /**
+     * 플레이어가 자신의 파일런을 파괴(회수)할 때 호출됩니다.
+     * @param player 회수하는 플레이어
+     * @param pylonBlock 파괴된 파일런 블록
+     * @param clan 파일런을 소유한 가문
+     */
+    public void handlePylonRetrieval(Player player, Block pylonBlock, Clan clan) {
+        // 가문 대표만 회수 가능하도록 제한합니다.
+        if (!clan.getLeader().equals(player.getUniqueId())) {
+            player.sendMessage(PREFIX + "§c자신의 가문 파일런은 가문장만 회수할 수 있습니다.");
+            return;
+        }
+
+        String pylonLocStr = PluginUtils.serializeLocation(pylonBlock.getLocation());
+        PylonType pylonType = clan.getPylonType(pylonLocStr);
+
+        clan.removePylonLocation(pylonLocStr);
+        plugin.getClanManager().getStorageManager().saveClan(clan);
+        plugin.getPylonManager().getAreaManager().removeProtectedPylon(pylonBlock.getLocation());
+        plugin.getPylonManager().getStructureManager().removeBaseAndBarrier(pylonBlock.getLocation());
+
+        ItemStack itemToGive = (pylonType == PylonType.MAIN_CORE) ? PylonItemFactory.createMainCore() : PylonItemFactory.createAuxiliaryCore();
+        InventoryUtils.giveOrDropItems(player, itemToGive);
+        player.sendMessage(PREFIX + "파일런을 성공적으로 회수했습니다.");
+
+        pylonBlock.setType(Material.AIR);
     }
 }

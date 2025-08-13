@@ -29,7 +29,7 @@ public class ShovelProfile implements IWeaponProfile {
         applyBaseAttackAttributes(item.getType(), meta);
 
         // 3. 강화 레벨에 따른 추가 공격력을 적용합니다.
-        double damagePerLevel = DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("attribute-bonuses.shovel.damage-per-level", 0.5);
+        double damagePerLevel = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.attribute-bonuses.shovel.damage-per-level", 0.5);
         double bonusDamage = level * damagePerLevel;
 
         if (bonusDamage > 0) {

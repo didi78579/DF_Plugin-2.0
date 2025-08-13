@@ -1,22 +1,24 @@
 package cjs.DF_Plugin.clan;
 
 import cjs.DF_Plugin.DF_Main;
-import cjs.DF_Plugin.clan.ui.ClanUIManager;
 import cjs.DF_Plugin.clan.storage.ClanStorageManager;
+import cjs.DF_Plugin.command.clan.ui.ClanUIManager;
 import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class ClanManager {
 
     private final DF_Main plugin;
-    private final InviteManager inviteManager;
     private final ClanStorageManager storageManager;
     private final PlayerTagManager playerTagManager;
+    private final ClanUIManager uiManager;
 
     // UI 세션 관리를 위한 맵
     private final Map<UUID, CreationSession> creationSessions = new HashMap<>();
@@ -25,12 +27,18 @@ public class ClanManager {
     private final Map<String, Clan> clans = new HashMap<>();
     // Map<플레이어UUID, Clan>
     private final Map<UUID, Clan> playerClanMap = new HashMap<>();
+    // Map<클랜이름, Inventory>
+    private final Map<String, Inventory> pylonStorages = new HashMap<>();
+    // Map<클랜이름, Inventory> for gift boxes
+    private final Map<String, Inventory> giftBoxInventories = new HashMap<>();
+    // Map<클랜이름, PlayerUUID> for gift box viewers
+    private final Map<String, UUID> giftBoxViewers = new ConcurrentHashMap<>();
 
     public ClanManager(DF_Main plugin) {
         this.plugin = plugin;
-        this.inviteManager = new InviteManager(plugin);
         this.storageManager = new ClanStorageManager(plugin);
         this.playerTagManager = new PlayerTagManager(plugin, this);
+        this.uiManager = new ClanUIManager();
         loadClans();
     }
 
@@ -42,14 +50,16 @@ public class ClanManager {
         playerClanMap.clear();
         Map<String, Clan> loadedClans = storageManager.loadAllClans();
         clans.putAll(loadedClans);
-        clans.values().forEach(clan ->
-                clan.getMembers().forEach(memberId -> playerClanMap.put(memberId, clan))
-        );
+        clans.values().forEach(clan -> {
+            clan.getMembers().forEach(memberId -> playerClanMap.put(memberId, clan));
+            giftBoxInventories.put(clan.getName(), storageManager.loadGiftBox(clan));
+        });
         plugin.getLogger().info("ClanManager loaded with " + clans.size() + " clans.");
     }
 
     public Clan createClan(String name, Player leader, ChatColor color) {
         Clan clan = new Clan(name, leader.getUniqueId(), color);
+        clan.setLastGiftBoxTime(System.currentTimeMillis()); // 선물상자 타이머 시작
         clans.put(name.toLowerCase(), clan);
         playerClanMap.put(leader.getUniqueId(), clan);
         storageManager.saveClan(clan);
@@ -75,7 +85,24 @@ public class ClanManager {
 
     public void absorbClan(Clan attacker, Clan defender) {
         // Notify defender's members about absorption
-        defender.broadcastMessage(PluginUtils.colorize("&c[전쟁] &f가문이 멸망하여 " + attacker.getColor() + attacker.getName() + "&f 가문에 흡수되었습니다."));
+        defender.broadcastMessage(PluginUtils.colorize("&c[전쟁] &f가문이 멸망하여 " + attacker.getFormattedName() + " §f가문에 흡수되었습니다."));
+
+        // Announce to the entire server
+        String publicMessage = PluginUtils.colorize("&4[전쟁] " + defender.getFormattedName() + " §c가문이 마지막 파일런을 잃고 " + attacker.getFormattedName() + " §c가문에게 흡수되었습니다!");
+        Bukkit.broadcastMessage(publicMessage);
+
+        // 패배한 가문의 모든 파일런 구조물과 보호 영역을 제거합니다.
+        for (String locString : defender.getPylonLocations()) {
+            org.bukkit.Location pylonLoc = PluginUtils.deserializeLocation(locString);
+            if (pylonLoc != null) {
+                // 블록 자체를 공기로 만들어 아이템 드롭을 방지하고 즉시 제거합니다.
+                pylonLoc.getBlock().setType(org.bukkit.Material.AIR);
+                // 주변 구조물(철 블록, 배리어)을 제거합니다.
+                plugin.getPylonManager().getStructureManager().removeBaseAndBarrier(pylonLoc);
+                // 보호 영역에서 제거합니다.
+                plugin.getPylonManager().getAreaManager().removeProtectedPylon(pylonLoc);
+            }
+        }
 
         Set<UUID> membersToAbsorb = new HashSet<>(defender.getMembers());
         for (UUID memberUUID : membersToAbsorb) {
@@ -127,47 +154,58 @@ public class ClanManager {
 
     public Clan getClanByName(String name) { return clans.get(name.toLowerCase()); }
     public Clan getClanByPlayer(UUID uuid) { return playerClanMap.get(uuid); }
-    public InviteManager getInviteManager() { return inviteManager; }
     public ClanStorageManager getStorageManager() { return storageManager; }
     public PlayerTagManager getPlayerTagManager() { return playerTagManager; }
-    public Collection<Clan> getClans() { return clans.values(); }
 
-    /**
-     * 관리자가 플레이어를 클랜에 강제로 추가합니다.
-     * 플레이어가 이미 다른 클랜에 속해 있다면, 이전 클랜에서 자동으로 제거됩니다.
-     * @param player 대상 플레이어
-     * @param clanName 클랜 이름
-     */
-    public void forceAddPlayerToClan(Player player, String clanName) {
-        Clan targetClan = getClanByName(clanName);
-        if (targetClan == null) {
-            // 호출한 쪽에서 클랜이 없는 경우를 처리해야 합니다.
-            return;
-        }
-
-        Clan currentClan = getClanByPlayer(player.getUniqueId());
-        if (currentClan != null) {
-            if (currentClan.equals(targetClan)) {
-                return; // 이미 해당 클랜 소속입니다.
-            }
-            // 기존 클랜에서 강제 제거합니다.
-            forceRemovePlayerFromClan(player);
-        }
-
-        // 새 클랜에 추가합니다.
-        addPlayerToClan(player, targetClan);
+    public int getMaxMembers() {
+        return plugin.getGameConfigManager().getConfig().getInt("pylon.recruitment.max-members", 4);
     }
 
     /**
-     * 관리자가 플레이어를 클랜에서 강제로 제거합니다.
-     * 만약 제거되는 플레이어가 리더일 경우, 클랜은 자동으로 해체됩니다.
+     * 파일런 위치 문자열로 해당 파일런을 소유한 클랜을 찾습니다.
+     * @param locationStr 직렬화된 위치 문자열
+     * @return 해당 위치에 파일런이 있는 클랜 (Optional)
+     */
+    public Optional<Clan> getClanByPylonLocation(String locationStr) {
+        return clans.values().stream()
+                .filter(clan -> clan.getPylonLocations().contains(locationStr))
+                .findFirst();
+    }
+    public Collection<Clan> getClans() { return clans.values(); }
+
+    public Collection<Clan> getAllClans() {
+        return clans.values();
+    }
+
+    /**
+     * 관리자가 플레이어를 특정 클랜에 강제로 가입시킵니다.
+     * @param player 대상 플레이어
+     * @param clanName 가입시킬 클랜 이름
+     */
+    public void forceJoinClan(Player player, String clanName) {
+        Clan clanToJoin = getClanByName(clanName);
+        if (clanToJoin == null) {
+            plugin.getLogger().warning("Admin command failed: Clan '" + clanName + "' not found.");
+            return;
+        }
+        // 플레이어가 이미 다른 클랜에 있다면, 먼저 탈퇴시킵니다.
+        Clan currentClan = getClanByPlayer(player.getUniqueId());
+        if (currentClan != null) {
+            removePlayerFromClan(player, currentClan);
+        }
+        addPlayerToClan(player, clanToJoin);
+        player.sendMessage("§a관리자에 의해 " + clanToJoin.getDisplayName() + " §a클랜에 강제 가입되었습니다.");
+    }
+
+    /**
+     * 관리자가 플레이어를 현재 소속된 클랜에서 강제로 탈퇴시킵니다.
      * @param player 대상 플레이어
      */
     public void forceRemovePlayerFromClan(Player player) {
         Clan clan = getClanByPlayer(player.getUniqueId());
         if (clan == null) return;
 
-        // 제거 대상이 리더인 경우, 클랜을 해체하여 리더 없는 클랜이 생기는 것을 방지합니다.
+        // 중요: 제거 대상이 리더인 경우, 리더 없는 클랜이 생기는 것을 방지하기 위해 클랜을 해체합니다.
         if (clan.getLeader().equals(player.getUniqueId())) {
             disbandClan(clan);
         } else {
@@ -176,8 +214,50 @@ public class ClanManager {
         }
     }
 
+    /**
+     * 클랜 이름으로 클랜을 찾거나, 없으면 새로 생성하여 반환합니다.
+     * 이 메서드는 주로 서버 시작 시 데이터를 불러올 때 사용됩니다.
+     * @param name 클랜 이름
+     * @param ownerUUID 리더의 UUID
+     * @param colorString 색상 코드 문자열 (예: "§a")
+     * @return 찾거나 생성된 Clan 객체
+     */
+    public Clan getOrCreateClan(String name, UUID ownerUUID, String colorString) {
+        Clan existingClan = getClanByName(name);
+        if (existingClan != null) {
+            return existingClan;
+        }
+        ChatColor color = (colorString != null && colorString.length() > 1) ? ChatColor.getByChar(colorString.charAt(1)) : ChatColor.WHITE;
+        Clan newClan = new Clan(name, ownerUUID, color);
+        clans.put(name.toLowerCase(), newClan);
+        playerClanMap.put(ownerUUID, newClan);
+        return newClan;
+    }
+
     public List<String> getClanNames() {
         return clans.values().stream().map(Clan::getName).collect(Collectors.toList());
+    }
+
+    /**
+     * 파일런 파괴 시 후속 처리를 담당합니다.
+     * 멀티코어 비활성화 시 적에 의해 파괴되면 가문 흡수가 발생할 수 있습니다.
+     * @param defender 파괴된 파일런의 소유 가문
+     * @param destroyer 파괴한 플레이어 (null일 수 있음)
+     * @return 흡수가 발생하여 후속 처리가 필요 없는 경우 true, 아니면 false
+     */
+    public boolean handlePylonLoss(Clan defender, Player destroyer) {
+        boolean multiCoreEnabled = plugin.getGameConfigManager().getConfig().getBoolean("pylon.features.multi-core", false);
+
+        // 멀티코어 비활성화 상태이고, 파괴자가 있으며, 다른 가문 소속일 경우
+        if (!multiCoreEnabled && destroyer != null) {
+            Clan attacker = getClanByPlayer(destroyer.getUniqueId());
+            if (attacker != null && !attacker.equals(defender)) {
+                // 마지막 파일런이 파괴되었으므로 가문을 흡수합니다.
+                absorbClan(attacker, defender);
+                return true; // 흡수 처리 완료, 추가적인 파괴 로직 불필요
+            }
+        }
+        return false; // 일반 파괴 처리 필요
     }
 
     public boolean isNameTaken(String name) {
@@ -200,6 +280,69 @@ public class ClanManager {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 플레이어의 클랜 파일런 창고를 엽니다.
+     * 창고가 메모리에 없으면 스토리지에서 불러옵니다.
+     * @param player 창고를 열 플레이어
+     */
+    public void openPylonStorage(Player player) {
+        Clan clan = getClanByPlayer(player.getUniqueId());
+        if (clan == null) {
+            player.sendMessage("§c파일런 창고를 열려면 가문에 소속되어 있어야 합니다.");
+            return;
+        }
+
+        Inventory storage = pylonStorages.computeIfAbsent(clan.getName(), clanName ->
+                storageManager.loadPylonStorage(clan)
+        );
+
+        player.openInventory(storage);
+    }
+
+    public Map<String, Inventory> getPylonStorages() {
+        return pylonStorages;
+    }
+
+    public Inventory getGiftBoxInventory(Clan clan) {
+        return giftBoxInventories.computeIfAbsent(clan.getName(), k ->
+                storageManager.loadGiftBox(clan)
+        );
+    }
+
+    public Map<String, Inventory> getGiftBoxInventories() {
+        return giftBoxInventories;
+    }
+
+    /**
+     * 선물상자가 다른 플레이어에 의해 사용 중인지 확인합니다.
+     * @param clan 확인할 가문
+     * @return 사용 중이면 true
+     */
+    public boolean isGiftBoxInUse(Clan clan) {
+        return giftBoxViewers.containsKey(clan.getName());
+    }
+
+    /**
+     * 선물상자를 보고 있는 플레이어의 UUID를 가져옵니다.
+     * @param clan 확인할 가문
+     * @return 보고 있는 플레이어의 UUID, 없으면 null
+     */
+    public UUID getGiftBoxViewer(Clan clan) {
+        return giftBoxViewers.get(clan.getName());
+    }
+
+    /**
+     * 선물상자를 열거나 닫은 플레이어를 기록합니다.
+     * @param clan 대상 가문
+     * @param playerUUID 연 플레이어의 UUID, 닫았을 경우 null
+     */
+    public void setGiftBoxViewer(Clan clan, UUID playerUUID) {
+        if (playerUUID == null) {
+            giftBoxViewers.remove(clan.getName());
+        } else {
+            giftBoxViewers.put(clan.getName(), playerUUID);
+        }
+    }
     // --- UI Session Management ---
 
     public CreationSession startCreationSession(Player player) {
@@ -240,7 +383,7 @@ public class ClanManager {
 
         public CreationSession(List<ChatColor> availableColors) {
             this.availableColors = availableColors;
-            this.color = availableColors.get(0);
+            this.color = availableColors.isEmpty() ? ChatColor.WHITE : availableColors.get(0);
         }
 
         public void nextColor() {
@@ -254,5 +397,9 @@ public class ClanManager {
             colorIndex = (colorIndex - 1 + availableColors.size()) % availableColors.size();
             color = availableColors.get(colorIndex);
         }
+    }
+
+    public ClanUIManager getUiManager() {
+        return uiManager;
     }
 }

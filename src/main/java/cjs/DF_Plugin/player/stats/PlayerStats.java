@@ -5,6 +5,8 @@ import java.util.Map;
 
 public class PlayerStats implements Cloneable {
     private Map<StatType, Integer> stats = new HashMap<>();
+    private int kills = 0;
+    private int deaths = 0;
 
     public PlayerStats() {
         // 모든 스탯을 기본값 1로 초기화합니다.
@@ -35,12 +37,50 @@ public class PlayerStats implements Cloneable {
         return this.stats;
     }
 
+    public int getKills() {
+        return kills;
+    }
+
+    public void setKills(int kills) {
+        this.kills = Math.max(0, kills);
+    }
+
+    public void incrementKills() {
+        this.kills++;
+    }
+
+    public int getDeaths() {
+        return deaths;
+    }
+
+    public void setDeaths(int deaths) {
+        this.deaths = Math.max(0, deaths);
+    }
+
+    public void incrementDeaths() {
+        this.deaths++;
+    }
+
+    /**
+     * 모든 스탯이 기본값(1)인지 확인합니다.
+     * @return 모든 스탯이 1이면 true, 아니면 false
+     */
+    public boolean isDefault() {
+        if (kills != 0 || deaths != 0) return false;
+        for (int value : stats.values()) {
+            if (value != 1) return false;
+        }
+        return true;
+    }
+
     @Override
     public PlayerStats clone() {
         try {
             PlayerStats cloned = (PlayerStats) super.clone();
             // The map field is mutable, so we need to create a new map for the clone.
             cloned.stats = new HashMap<>(this.stats);
+            cloned.kills = this.kills;
+            cloned.deaths = this.deaths;
             return cloned;
         } catch (CloneNotSupportedException e) {
             // This should not happen, as we are implementing Cloneable

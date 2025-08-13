@@ -1,15 +1,15 @@
 package cjs.DF_Plugin.upgrade.specialability;
 
 import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class SpecialAbilityManager {
 
@@ -130,7 +130,8 @@ public class SpecialAbilityManager {
 
     private String getCooldownKey(Player player, ISpecialAbility ability, ItemStack item) {
         // This logic can be configured to have cooldowns per weapon or per ability type
-        boolean perItemCooldown = plugin.getUpgradeSettingManager().getConfig().getBoolean("cooldown.per-weapon-cooldown", true);
+        GameConfigManager configManager = plugin.getGameConfigManager();
+        boolean perItemCooldown = configManager.getConfig().getBoolean("upgrade.cooldown.per-weapon-cooldown", true);
         if (perItemCooldown && item != null && item.hasItemMeta()) {
             // 아이템의 hashCode 대신, 아이템에 저장된 영구적인 UUID를 사용하여 키를 생성합니다.
             // 이것이 쿨다운 추적 버그를 해결하는 핵심입니다.
@@ -150,12 +151,26 @@ public class SpecialAbilityManager {
         return playerCharges.get(playerUUID);
     }
 
-    public ISpecialAbility getAbilityFromItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return null;
+    public Optional<ISpecialAbility> getAbilityFromItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return Optional.empty();
+        }
         String abilityKey = item.getItemMeta().getPersistentDataContainer().get(SPECIAL_ABILITY_KEY, PersistentDataType.STRING);
-        if (abilityKey == null) return null;
+        if (abilityKey == null) {
+            return Optional.empty();
+        }
 
-        IWeaponProfile profile = plugin.getWeaponProfileManager().getProfile(item.getType());
-        return (profile != null && profile.getSpecialAbility() != null && profile.getSpecialAbility().getInternalName().equals(abilityKey)) ? profile.getSpecialAbility() : null;
+        IWeaponProfile profile = plugin.getUpgradeManager().getProfileRegistry().getProfile(item.getType());
+        if (profile != null && profile.getSpecialAbility() != null && profile.getSpecialAbility().getInternalName().equals(abilityKey)) {
+            return Optional.of(profile.getSpecialAbility());
+        }
+        return Optional.empty();
+    }
+
+    public Collection<ISpecialAbility> getAllAbilities() {
+        return plugin.getUpgradeManager().getProfileRegistry().getAllProfiles().stream()
+                .map(IWeaponProfile::getSpecialAbility)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 }

@@ -9,7 +9,7 @@ import java.util.UUID;
 public class MassRegistrationSession {
     private final UUID editorUUID;
     private final List<UUID> targets;
-    private int currentIndex = -1;
+    private int currentIndex = 0;
     private PlayerStats currentStats;
 
     public MassRegistrationSession(UUID editorUUID, List<UUID> targets) {
@@ -17,20 +17,16 @@ public class MassRegistrationSession {
         this.targets = targets;
     }
 
-    public boolean hasNext() {
-        return currentIndex + 1 < targets.size();
+    public void next() {
+        currentIndex++;
     }
 
-    public UUID getNextTarget() {
-        if (hasNext()) {
-            currentIndex++;
-            return targets.get(currentIndex);
-        }
-        return null;
+    public boolean isFinished() {
+        return currentIndex >= targets.size();
     }
 
-    public UUID getCurrentTarget() {
-        if (currentIndex >= 0 && currentIndex < targets.size()) {
+    public UUID getCurrentPlayer() {
+        if (!isFinished()) {
             return targets.get(currentIndex);
         }
         return null;
@@ -45,6 +41,7 @@ public class MassRegistrationSession {
     }
 
     public String getProgress() {
-        return "(" + (currentIndex + 1) + "/" + targets.size() + ")";
+        int displayIndex = Math.min(currentIndex + 1, targets.size());
+        return "(" + displayIndex + "/" + targets.size() + ")";
     }
 }

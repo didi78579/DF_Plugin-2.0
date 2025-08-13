@@ -3,7 +3,7 @@ package cjs.DF_Plugin.upgrade.specialability.impl;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.actionbar.ActionBarManager;
-import cjs.DF_Plugin.upgrade.setting.UpgradeSettingManager;
+import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
 import org.bukkit.Sound;
@@ -46,9 +46,9 @@ public class VampirismAbility implements ISpecialAbility {
 
         manager.setCooldown(player, this, item);
 
-        UpgradeSettingManager settings = DF_Main.getInstance().getUpgradeSettingManager();
-        double stealPercent = settings.getConfig().getDouble("ability-attributes.vampirism.health-steal-percent", 40.0) / 100.0;
-        double damageMultiplier = settings.getConfig().getDouble("ability-attributes.vampirism.damage-multiplier", 0.5);
+        GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+        double stealPercent = configManager.getConfig().getDouble("upgrade.ability-attributes.vampirism.health-steal-percent", 40.0) / 100.0;
+        double damageMultiplier = configManager.getConfig().getDouble("upgrade.ability-attributes.vampirism.damage-multiplier", 0.5);
 
         double targetMaxHealth = target.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
         double healthToSteal = targetMaxHealth * stealPercent;

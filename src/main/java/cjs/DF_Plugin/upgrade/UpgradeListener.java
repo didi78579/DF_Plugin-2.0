@@ -1,15 +1,13 @@
 package cjs.DF_Plugin.upgrade;
 
 import cjs.DF_Plugin.DF_Main;
-import cjs.DF_Plugin.items.UpgradeItems;
 import cjs.DF_Plugin.upgrade.gui.UpgradeGUI;
-import cjs.DF_Plugin.upgrade.profile.WeaponProfileManager;
+import cjs.DF_Plugin.items.UpgradeItems;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -28,7 +26,6 @@ public class UpgradeListener implements Listener {
 
     private final DF_Main plugin;
     private final UpgradeManager upgradeManager;
-    private final WeaponProfileManager weaponProfileManager;
     private final UpgradeGUI upgradeGUI;
 
     private static final Set<Material> ANVIL_TYPES = Set.of(
@@ -40,7 +37,6 @@ public class UpgradeListener implements Listener {
     public UpgradeListener(DF_Main plugin) {
         this.plugin = plugin;
         this.upgradeManager = plugin.getUpgradeManager();
-        this.weaponProfileManager = plugin.getWeaponProfileManager();
         this.upgradeGUI = new UpgradeGUI(plugin);
     }
 
@@ -71,8 +67,6 @@ public class UpgradeListener implements Listener {
         // GUI 내부 클릭만 처리
         if (slot < topInventory.getSize()) {
             switch (slot) {
-                case UpgradeGUI.BUY_DIAMOND_SLOT -> handleBuyWithDiamonds(player);
-                case UpgradeGUI.BUY_XP_SLOT -> handleBuyWithXP(player);
                 case UpgradeGUI.UPGRADE_ITEM_SLOT -> {
                     if (event.isLeftClick()) {
                         handleUpgrade(player, topInventory);
@@ -99,36 +93,6 @@ public class UpgradeListener implements Listener {
         }
     }
 
-    private void handleBuyWithDiamonds(Player player) {
-        FileConfiguration config = plugin.getUpgradeSettingManager().getConfig();
-        int required = config.getInt("exchange-rates.diamond.required", 1);
-        int gained = config.getInt("exchange-rates.diamond.gained", 1);
-
-        if (player.getInventory().contains(Material.DIAMOND, required)) {
-            player.getInventory().removeItem(new ItemStack(Material.DIAMOND, required));
-            player.sendMessage(ChatColor.AQUA + "다이아몬드로 강화석을 구매하셨습니다!");
-            giveOrDropItems(player, UpgradeItems.createUpgradeStone(gained));
-        } else {
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_PLACE, 1.0f, 1.8f);
-            player.sendMessage(ChatColor.RED + "다이아몬드가 부족합니다!");
-        }
-    }
-
-    private void handleBuyWithXP(Player player) {
-        FileConfiguration config = plugin.getUpgradeSettingManager().getConfig();
-        int requiredLevels = config.getInt("exchange-rates.experience.required-levels", 40);
-        int gainedStones = config.getInt("exchange-rates.experience.gained", 128);
-
-        if (player.getLevel() >= requiredLevels) {
-            player.setLevel(player.getLevel() - requiredLevels);
-            player.sendMessage(ChatColor.GREEN + "경험치로 강화석을 구매하셨습니다!");
-            giveOrDropItems(player, UpgradeItems.createUpgradeStone(gainedStones));
-        } else {
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_PLACE, 1.0f, 1.8f);
-            player.sendMessage(ChatColor.RED + "경험치가 부족합니다!");
-        }
-    }
-
     private void handleUpgrade(Player player, Inventory inventory) {
         ItemStack targetItem = inventory.getItem(UpgradeGUI.UPGRADE_ITEM_SLOT);
 
@@ -140,7 +104,7 @@ public class UpgradeListener implements Listener {
         upgradeManager.attemptUpgrade(player, targetItem);
 
         if (targetItem.getAmount() == 0) {
-            inventory.setItem(UpgradeGUI.UPGRADE_ITEM_SLOT, UpgradeGUI.createAnvilPlaceholder());
+            inventory.setItem(UpgradeGUI.UPGRADE_ITEM_SLOT, UpgradeGUI.createAnvilPlaceholder()); // 파괴된 경우 GUI 슬롯을 비움
         }
     }
 
@@ -159,9 +123,12 @@ public class UpgradeListener implements Listener {
 
         ItemStack itemInSlot = inventory.getItem(UpgradeGUI.UPGRADE_ITEM_SLOT);
         if (itemInSlot != null && itemInSlot.isSimilar(UpgradeGUI.createAnvilPlaceholder())) {
-            if (weaponProfileManager.getProfile(clickedItem.getType()) != null) {
+            if (upgradeManager.getProfileRegistry().getProfile(clickedItem.getType()) != null) {
                 inventory.setItem(UpgradeGUI.UPGRADE_ITEM_SLOT, clickedItem.clone());
                 event.setCurrentItem(null);
+
+                // 아이템을 올렸을 때 소리 재생
+                player.playSound(player.getLocation(), Sound.UI_STONECUTTER_TAKE_RESULT, 0.7f, 1.5f);
             } else {
                 player.sendMessage(ChatColor.RED + "이 아이템은 강화할 수 없습니다.");
             }

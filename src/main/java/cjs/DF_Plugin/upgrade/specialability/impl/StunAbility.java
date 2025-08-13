@@ -3,6 +3,7 @@ package cjs.DF_Plugin.upgrade.specialability.impl;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.actionbar.ActionBarManager;
+import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
 import org.bukkit.Location;
@@ -48,8 +49,11 @@ public class StunAbility implements ISpecialAbility {
 
         manager.setCooldown(player, this, item);
 
-        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 5, true, false));
-        target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 30, 5, true, false));
+        GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+        int durationTicks = (int) (configManager.getConfig().getDouble("upgrade.ability-attributes.stun.duration-seconds", 1.5) * 20);
+
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, durationTicks, 5, true, false));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, durationTicks, 5, true, false));
         target.getWorld().playSound(target.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 0.8f);
 
         if (target instanceof Player targetPlayer) {
@@ -58,7 +62,7 @@ public class StunAbility implements ISpecialAbility {
                 int ticks = 0;
                 @Override
                 public void run() {
-                    if (ticks++ >= 30 || !targetPlayer.isOnline()) {
+                    if (ticks++ >= durationTicks || !targetPlayer.isOnline()) {
                         this.cancel();
                         return;
                     }

@@ -1,7 +1,7 @@
 package cjs.DF_Plugin.pylon.reinstall;
 
 import cjs.DF_Plugin.DF_Main;
-import cjs.DF_Plugin.pylon.beaconinteraction.PylonItemListener;
+import cjs.DF_Plugin.pylon.item.PylonItemFactory;
 import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -24,7 +24,7 @@ public class PylonReinstallManager {
     }
 
     public void startReinstallTimer(Player player) {
-        int durationHours = plugin.getPylonManager().getConfigManager().getReinstallDurationHours();
+        int durationHours = plugin.getGameConfigManager().getPylonReinstallDurationHours();
         long deadline = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(durationHours);
         reinstallDeadlines.put(player.getUniqueId(), deadline);
         player.sendMessage(PREFIX + "§c파일런을 " + durationHours + "시간 내에 다시 설치해야 합니다!");
@@ -38,9 +38,8 @@ public class PylonReinstallManager {
 
     private void removePylonItem(Player player) {
         for (ItemStack item : player.getInventory().getContents()) {
-            if (PylonItemListener.isPylonItem(item)) {
+            if (PylonItemFactory.isMainCore(item) || PylonItemFactory.isAuxiliaryCore(item)) {
                 player.getInventory().remove(item);
-                break; // Assume only one pylon item
             }
         }
     }

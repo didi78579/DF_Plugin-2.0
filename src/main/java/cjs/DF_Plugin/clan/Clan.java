@@ -1,120 +1,136 @@
 package cjs.DF_Plugin.clan;
 
-import org.bukkit.Bukkit;
+import cjs.DF_Plugin.pylon.PylonType;
+import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
-/**
- * 클랜의 모든 데이터를 담는 클래스
- */
 public class Clan {
-
     private final String name;
-    private ChatColor color;
     private UUID leader;
-    private final Set<UUID> members;
-
-    // 파일런 및 부가 기능 데이터
-    private final List<String> pylonLocations = new ArrayList<>();
+    private final Set<UUID> members = new HashSet<>();
+    private ChatColor color;
+    private final Map<String, PylonType> pylonLocations = new HashMap<>();
     private long lastRetrievalTime;
     private long lastReconFireworkTime;
     private long lastGiftBoxTime;
-    private boolean giftBoxReady;
 
     public Clan(String name, UUID leader, ChatColor color) {
         this.name = name;
         this.leader = leader;
-        this.color = color;
-        this.members = new HashSet<>();
         this.members.add(leader);
+        this.color = color;
     }
 
-    /**
-     * 설정 파일(YAML)로부터 클랜 데이터를 불러올 때 사용하는 생성자
-     */
-    public Clan(String name, ConfigurationSection config) {
+    public Clan(String name, FileConfiguration config) {
         this.name = name;
         this.leader = UUID.fromString(config.getString("leader"));
-        this.color = ChatColor.valueOf(config.getString("color", "WHITE"));
-        List<String> memberUuids = config.getStringList("members");
-        this.members = memberUuids.stream().map(UUID::fromString).collect(Collectors.toSet());
-
-        // 파일런 및 부가 기능 데이터 로드
-        this.pylonLocations.addAll(config.getStringList("pylons"));
+        config.getStringList("members").forEach(uuidString -> members.add(UUID.fromString(uuidString)));
+        this.color = ChatColor.getByChar(config.getString("color", "f").charAt(0));
         this.lastRetrievalTime = config.getLong("last-retrieval-time", 0);
         this.lastReconFireworkTime = config.getLong("last-recon-firework-time", 0);
-        this.lastGiftBoxTime = config.getLong("last-gift-box-time", 0);
-        this.giftBoxReady = config.getBoolean("gift-box-ready", false);
+        this.lastGiftBoxTime = config.getLong("last-giftbox-time", 0);
+
+        // Load pylon locations and types
+        ConfigurationSection pylonSection = config.getConfigurationSection("pylons");
+        if (pylonSection != null) {
+            for (String locString : pylonSection.getKeys(false)) {
+                try {
+                    // In YAML, '.' is a path separator, so we save with '_' and load with '.'
+                    PylonType type = PylonType.valueOf(pylonSection.getString(locString));
+                    this.pylonLocations.put(locString.replace('_', '.'), type);
+                } catch (IllegalArgumentException e) {
+                    // Fallback for old data format or invalid type
+                    this.pylonLocations.put(locString.replace('_', '.'), PylonType.MAIN_CORE);
+                }
+            }
+        } else { // Fallback for very old data format (Set<String>)
+            List<String> oldPylonList = config.getStringList("pylon-locations");
+            for (String locString : oldPylonList) {
+                this.pylonLocations.put(locString, PylonType.MAIN_CORE);
+            }
+        }
     }
 
-    /**
-     * 클랜 데이터를 설정 파일에 저장
-     */
-    public void save(ConfigurationSection config) {
+    public void save(FileConfiguration config) {
         config.set("leader", leader.toString());
-        config.set("color", color.name());
-        config.set("members", members.stream().map(UUID::toString).collect(Collectors.toList()));
-        config.set("pylons", pylonLocations);
+        List<String> memberUUIDs = new ArrayList<>();
+        members.forEach(uuid -> memberUUIDs.add(uuid.toString()));
+        config.set("members", memberUUIDs);
+        config.set("color", String.valueOf(color.getChar()));
         config.set("last-retrieval-time", lastRetrievalTime);
         config.set("last-recon-firework-time", lastReconFireworkTime);
-        config.set("last-gift-box-time", lastGiftBoxTime);
-        config.set("gift-box-ready", giftBoxReady);
+        config.set("last-giftbox-time", lastGiftBoxTime);
+
+        // Save pylon locations and types
+        config.set("pylon-locations", null); // remove old list format
+        ConfigurationSection pylonSection = config.createSection("pylons");
+        for (Map.Entry<String, PylonType> entry : pylonLocations.entrySet()) {
+            // In YAML, '.' is a path separator, so we must replace it.
+            pylonSection.set(entry.getKey().replace('.', '_'), entry.getValue().name());
+        }
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public ChatColor getColor() {
-        return color;
-    }
-
-    public UUID getLeader() {
-        return leader;
-    }
-
-    public void setLeader(UUID newLeader) {
-        this.leader = newLeader;
-    }
-
-    public Set<UUID> getMembers() {
-        return members;
-    }
-
-    public void addMember(UUID uuid) { members.add(uuid); }
-
-    public void removeMember(UUID uuid) { members.remove(uuid); }
-
-    public void broadcastMessage(String message) {
-        members.stream()
-                .map(Bukkit::getPlayer)
-                .filter(player -> player != null && player.isOnline())
-                .forEach(player -> player.sendMessage(message));
-    }
-
-    // --- Pylon and Feature Getters/Setters ---
-
-    public void addPylonLocation(String location) { pylonLocations.add(location); }
-
-    public List<String> getPylonLocations() { return pylonLocations; }
-
+    public String getName() { return name; }
+    public UUID getLeader() { return leader; }
+    public Set<UUID> getMembers() { return members; }
+    public ChatColor getColor() { return color; }
+    public String getDisplayName() { return color + name; }
+    public String getFormattedName() { return color + "[" + name + "]"; }
+    public Set<String> getPylonLocations() { return pylonLocations.keySet(); }
+    public Map<String, PylonType> getPylonLocationsMap() { return new HashMap<>(pylonLocations); }
+    public PylonType getPylonType(String location) { return pylonLocations.get(location); }
     public long getLastRetrievalTime() { return lastRetrievalTime; }
-    public void setLastRetrievalTime(long time) { this.lastRetrievalTime = time; }
-
     public long getLastReconFireworkTime() { return lastReconFireworkTime; }
-    public void setLastReconFireworkTime(long time) { this.lastReconFireworkTime = time; }
-
     public long getLastGiftBoxTime() { return lastGiftBoxTime; }
+
+    public void setLeader(UUID leader) { this.leader = leader; }
+    public void addMember(UUID member) { members.add(member); }
+    public void removeMember(UUID member) { members.remove(member); }
+    public void addPylonLocation(String location) { addPylonLocation(location, PylonType.MAIN_CORE); }
+    public void addPylonLocation(String location, PylonType type) { pylonLocations.put(location, type); }
+    public void removePylonLocation(String location) { pylonLocations.remove(location); }
+    public void clearPylonLocations() { pylonLocations.clear(); }
+    public void setLastRetrievalTime(long time) { this.lastRetrievalTime = time; }
+    public void setLastReconFireworkTime(long time) { this.lastReconFireworkTime = time; }
     public void setLastGiftBoxTime(long time) { this.lastGiftBoxTime = time; }
 
-    public boolean isGiftBoxReady() { return giftBoxReady; }
-    public void setGiftBoxReady(boolean ready) { this.giftBoxReady = ready; }
+    public boolean hasAuxiliaryPylons() {
+        return pylonLocations.containsValue(PylonType.AUXILIARY);
+    }
+
+    public String getMainPylonCoreLocation() {
+        for (Map.Entry<String, PylonType> entry : pylonLocations.entrySet()) {
+            if (entry.getValue() == PylonType.MAIN_CORE) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    public Location getMainPylonLocationObject() {
+        String locStr = getMainPylonCoreLocation();
+        if (locStr != null) {
+            return PluginUtils.deserializeLocation(locStr);
+        }
+        // Fallback for clans that might not have a main core due to old data
+        if (!pylonLocations.isEmpty()) {
+            return PluginUtils.deserializeLocation(pylonLocations.keySet().iterator().next());
+        }
+        return null;
+    }
+
+    public void broadcastMessage(String message) {
+        for (UUID memberId : members) {
+            Player player = org.bukkit.Bukkit.getPlayer(memberId);
+            if (player != null && player.isOnline()) {
+                player.sendMessage(message);
+            }
+        }
+    }
 }

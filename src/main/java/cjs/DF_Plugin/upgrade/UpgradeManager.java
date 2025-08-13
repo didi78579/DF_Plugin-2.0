@@ -1,30 +1,36 @@
 package cjs.DF_Plugin.upgrade;
 
 import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.items.ItemNameManager;
 import cjs.DF_Plugin.items.UpgradeItems;
 import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.ProfileRegistry;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
-import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Sound;
-import org.bukkit.Particle;
+import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.entity.Player;
 
 import java.util.*;
 
 public class UpgradeManager {
+
     private final DF_Main plugin;
+    private final ProfileRegistry profileRegistry;
     private final Random random = new Random();
-    private static final int MAX_UPGRADE_LEVEL = 10;
+    public static final int MAX_UPGRADE_LEVEL = 10;
+
+    // 특수 능력 및 아이템 식별을 위한 키
+    public static final NamespacedKey ITEM_UUID_KEY = new NamespacedKey(DF_Main.getInstance(), "item_uuid");
+    public static final NamespacedKey SPECIAL_ABILITY_KEY = new NamespacedKey(DF_Main.getInstance(), "special_ability");
 
     public UpgradeManager(DF_Main plugin) {
         this.plugin = plugin;
+        this.profileRegistry = new ProfileRegistry();
     }
 
     public int getUpgradeLevel(ItemStack item) {
@@ -50,7 +56,7 @@ public class UpgradeManager {
 
     public void attemptUpgrade(Player player, ItemStack item) {
         // 1. 강화 대상 분석
-        IWeaponProfile profile = plugin.getWeaponProfileManager().getProfile(item.getType());
+        IWeaponProfile profile = this.profileRegistry.getProfile(item.getType());
         if (profile == null) {
             player.sendMessage("§c이 아이템은 강화할 수 없습니다.");
             return;
@@ -74,8 +80,8 @@ public class UpgradeManager {
 
         // 4. 강화 실행
         consumeStones(player, requiredStones); // 강화석 소모
-        FileConfiguration config = plugin.getUpgradeSettingManager().getConfig();
-        String path = "level-settings." + currentLevel;
+        FileConfiguration config = plugin.getGameConfigManager().getConfig();
+        String path = "upgrade.level-settings." + currentLevel;
 
         if (!config.isConfigurationSection(path)) {
             player.sendMessage("§c다음 강화 레벨에 대한 설정이 없습니다. (레벨: " + currentLevel + ")");
@@ -95,29 +101,26 @@ public class UpgradeManager {
             // 성공
             int newLevel = currentLevel + 1;
             setUpgradeLevel(item, profile, newLevel);
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.5f);
-            player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, player.getLocation().add(0, 1, 0), 30, 0.5, 0.5, 0.5, 0.1);
+            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.5f);
             // 10강 달성 시 전설 알림
             if (newLevel == MAX_UPGRADE_LEVEL) {
                 handleLegendaryUpgrade(player, item);
             }
         } else if (roll < successChance + failureChance) {
-            // 실패 (레벨 유지)
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 1.0f);
-            player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation().add(0, 1, 0), 50, 0.5, 0.5, 0.5, 0.05);
+            // 실패 (변화 없음)
+            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 1.0f);
         } else if (roll < successChance + failureChance + downgradeChance) {
-            // 하락
+            // 등급 하락
             int newLevel = Math.max(0, currentLevel - 1);
             setUpgradeLevel(item, profile, newLevel);
-            player.playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 1.5f);
-            player.getWorld().spawnParticle(Particle.ANGRY_VILLAGER, player.getLocation().add(0, 1, 0), 10, 0.5, 0.5, 0.5, 0.1);
+            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 1.5f);
         } else {
             // 파괴
             String itemName = item.getItemMeta() != null && item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name();
             Bukkit.broadcastMessage("§c[!] §e" + player.getName() + "§7님이 §f" + itemName + " §c(+" + currentLevel + ")§7 강화에 실패하여 아이템이 파괴되었습니다.");
             item.setAmount(0);
-            player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.0f);
-            player.getWorld().spawnParticle(Particle.LAVA, player.getLocation().add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0);
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.0f);
+            player.getWorld().spawnParticle(Particle.LARGE_SMOKE, player.getLocation().add(0, 1, 0), 40, 0.5, 0.5, 0.5, 0.05);
         }
     }
 
@@ -126,23 +129,41 @@ public class UpgradeManager {
         if (meta == null) return;
 
         // 레벨에 따라 아이템 이름 처리 (전설의 접두사)
-        if (newLevel >= MAX_UPGRADE_LEVEL) {
-            String baseName = meta.hasDisplayName() ? ChatColor.stripColor(meta.getDisplayName()) : item.getType().name().toLowerCase().replace('_', ' ');
-            if (baseName.startsWith("전설의 ")) {
-                // 이미 접두사가 있는 경우, 색상만 확실히 금색으로 설정
-                meta.setDisplayName("§6" + baseName);
+        // PDC에서 커스텀 이름과 색상을 가져옵니다.
+        String customName = meta.getPersistentDataContainer().get(ItemNameManager.CUSTOM_NAME_KEY, PersistentDataType.STRING);
+        String customColorChar = meta.getPersistentDataContainer().get(ItemNameManager.CUSTOM_COLOR_KEY, PersistentDataType.STRING);
+
+        // 2. 기본 이름(접두사 제외) 결정
+        String baseName;
+        if (customName != null && !customName.isEmpty()) {
+            // 커스텀 이름이 있으면 최우선으로 사용
+            baseName = customName;
+        } else if (meta.hasDisplayName()) {
+            // 커스텀 이름은 없지만 기존 이름이 있는 경우 (강화된 아이템)
+            String currentName = ChatColor.stripColor(meta.getDisplayName());
+            // "전설의" 접두사가 있다면 제거하여 순수 이름만 추출
+            if (currentName.startsWith("전설의 ")) {
+                baseName = currentName.substring("전설의 ".length()).trim();
             } else {
-                // 새로운 전설 아이템
-                meta.setDisplayName("§6전설의 " + baseName);
+                baseName = currentName;
             }
         } else {
-            // 10강 미만일 경우, 전설의 접두사 제거
-            if (meta.hasDisplayName()) {
-                String strippedName = ChatColor.stripColor(meta.getDisplayName());
-                if (strippedName.startsWith("전설의 ")) {
-                    meta.setDisplayName(strippedName.substring("전설의 ".length()).trim());
-                }
-            }
+            // 커스텀 이름도, 기존 이름도 없는 순수 바닐라 아이템
+            baseName = null;
+        }
+
+        // 3. 최종 이름 설정
+        if (newLevel >= MAX_UPGRADE_LEVEL) {
+            String colorCode = (customColorChar != null) ? "§" + customColorChar : "§6"; // 커스텀 색상 또는 기본 금색
+            // 10강에서는 이름이 반드시 필요하므로, baseName이 없으면 영문명이라도 사용
+            String nameToUse = (baseName != null) ? baseName : item.getType().name().toLowerCase().replace('_', ' ');
+            meta.setDisplayName(colorCode + "전설의 " + nameToUse);
+        } else if (baseName != null) {
+            // 0-9강이고, 기본 이름이 있는 경우 (커스텀 또는 강화 다운그레이드)
+            meta.setDisplayName("§f" + baseName);
+        } else {
+            // 0-9강이고, 순수 바닐라 아이템인 경우 -> 이름 미설정으로 클라이언트 번역 유지
+            meta.setDisplayName(null);
         }
 
         List<String> lore = new ArrayList<>();
@@ -159,25 +180,25 @@ public class UpgradeManager {
         lore.add(""); // 간격을 위한 빈 줄
 
         // 2. 다음 레벨의 확률 정보 추가
-        FileConfiguration config = plugin.getUpgradeSettingManager().getConfig();
-        if (!config.getBoolean("show-success-chance", true)) {
+        FileConfiguration config = plugin.getGameConfigManager().getConfig();
+        if (!config.getBoolean("upgrade.show-success-chance", true)) {
             // 설정이 꺼져있으면 아무것도 하지 않음
         } else if (newLevel >= MAX_UPGRADE_LEVEL) {
             // 아이템이 이미 최대 레벨에 도달한 경우
             lore.add(ChatColor.GOLD + "최대 강화 레벨에 도달했습니다!");
         } else {
             // 다음 강화 레벨에 대한 정보를 yml에서 찾습니다.
-            String path = "level-settings." + newLevel;
+            String path = "upgrade.level-settings." + newLevel;
             if (config.isConfigurationSection(path)) {
                 double success = config.getDouble(path + ".success", 0.0) * 100;
                 double failure = config.getDouble(path + ".failure", 0.0) * 100;
                 double downgrade = config.getDouble(path + ".downgrade", 0.0) * 100;
-                double destroy = config.getDouble(path + ".destroy", 0.0) * 100;
+                double destroy = 100 - success - failure - downgrade;
 
                 lore.add(ChatColor.GREEN + "성공 확률: " + String.format("%.1f", success) + "%");
                 lore.add(ChatColor.YELLOW + "실패(유지) 확률: " + String.format("%.1f", failure) + "%");
                 lore.add(ChatColor.RED + "하락 확률: " + String.format("%.1f", downgrade) + "%");
-                lore.add(ChatColor.DARK_RED + "파괴 확률: " + String.format("%.1f", destroy) + "%");
+                lore.add(ChatColor.DARK_RED + "파괴 확률: " + String.format("%.1f", Math.max(0, destroy)) + "%");
             } else {
                 lore.add(ChatColor.GRAY + "다음 강화 정보가 없습니다.");
             }
@@ -192,12 +213,12 @@ public class UpgradeManager {
                 lore.add("§f[§b특수능력§f] : §b" + abilityName);
                 lore.add(ability.getDescription());
                 // 아이템에 고유 ID가 없으면 부여하여 쿨다운 추적에 사용합니다.
-                if (!meta.getPersistentDataContainer().has(SpecialAbilityManager.ITEM_UUID_KEY, PersistentDataType.STRING)) {
-                    meta.getPersistentDataContainer().set(SpecialAbilityManager.ITEM_UUID_KEY, PersistentDataType.STRING, UUID.randomUUID().toString());
+                if (!meta.getPersistentDataContainer().has(ITEM_UUID_KEY, PersistentDataType.STRING)) {
+                    meta.getPersistentDataContainer().set(ITEM_UUID_KEY, PersistentDataType.STRING, UUID.randomUUID().toString());
                 }
-                meta.getPersistentDataContainer().set(SpecialAbilityManager.SPECIAL_ABILITY_KEY, PersistentDataType.STRING, ability.getInternalName());
+                meta.getPersistentDataContainer().set(SPECIAL_ABILITY_KEY, PersistentDataType.STRING, ability.getInternalName());
             } else {
-                meta.getPersistentDataContainer().remove(SpecialAbilityManager.SPECIAL_ABILITY_KEY);
+                meta.getPersistentDataContainer().remove(SPECIAL_ABILITY_KEY);
             }
         }
 
@@ -226,7 +247,7 @@ public class UpgradeManager {
     private boolean hasEnoughStones(Player player, int amount) {
         int count = 0;
         for (ItemStack item : player.getInventory().getContents()) {
-            if (UpgradeItems.isUpgradeStone(item)) {
+            if (item != null && UpgradeItems.isUpgradeStone(item)) {
                 count += item.getAmount();
             }
         }
@@ -235,12 +256,17 @@ public class UpgradeManager {
 
     private void consumeStones(Player player, int amount) {
         int remaining = amount;
-        for (ItemStack item : player.getInventory().getContents()) {
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int i = 0; i < contents.length; i++) {
             if (remaining <= 0) break;
-            if (UpgradeItems.isUpgradeStone(item)) {
+            ItemStack item = contents[i];
+            if (item != null && UpgradeItems.isUpgradeStone(item)) {
                 int toTake = Math.min(remaining, item.getAmount());
                 item.setAmount(item.getAmount() - toTake);
                 remaining -= toTake;
+                if (item.getAmount() <= 0) {
+                    player.getInventory().setItem(i, null);
+                }
             }
         }
     }
@@ -251,7 +277,6 @@ public class UpgradeManager {
         }
 
         // 1. 이 시스템으로 관리되는 모든 인챈트를 먼저 제거하여 상태를 초기화합니다.
-        // 이렇게 하지 않으면 레벨이 하락했을 때 높은 레벨의 인챈트가 남을 수 있습니다.
         for (Enchantment ench : enchantBonuses.keySet()) {
             meta.removeEnchant(ench);
         }
@@ -291,5 +316,32 @@ public class UpgradeManager {
                 levelsToAdd.forEach((enchant, enchantLevel) -> meta.addEnchant(enchant, enchantLevel, true));
             }
         }
+    }
+
+    /**
+     * 아이템에 강화 레벨과 특정 인챈트를 동시에 설정합니다.
+     * @param item 대상 아이템
+     * @param level 설정할 레벨
+     * @param enchantment 부여할 인챈트
+     * @param enchantLevel 인챈트 레벨
+     * @return 수정된 아이템
+     */
+    public ItemStack setItemLevel(ItemStack item, int level, Enchantment enchantment, int enchantLevel) {
+        IWeaponProfile profile = profileRegistry.getProfile(item.getType());
+        if (profile != null) {
+            // 프로필이 존재하면, 레벨 설정 로직을 통해 이름, 로어, 기본 속성을 적용합니다.
+            setUpgradeLevel(item, profile, level);
+        }
+
+        // 프로필 존재 여부와 관계없이 요청된 특정 인챈트를 추가로 부여합니다.
+        ItemMeta meta = item.getItemMeta();
+        meta.addEnchant(enchantment, enchantLevel, true);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+
+    public ProfileRegistry getProfileRegistry() {
+        return profileRegistry;
     }
 }

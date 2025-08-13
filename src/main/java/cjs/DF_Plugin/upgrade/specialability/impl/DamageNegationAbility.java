@@ -26,17 +26,17 @@ public class DamageNegationAbility implements ISpecialAbility {
 
     @Override
     public double getCooldown() {
-        return DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-cooldowns.damage_negation", 0.0); // 확률 기반이므로 쿨타임 없음
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-cooldowns.damage_negation", 0.0); // 확률 기반이므로 쿨타임 없음
     }
 
     @Override
     public void onDamageByEntity(EntityDamageByEntityEvent event, Player player, ItemStack item) {
-        double chance = DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-chances.damage_negation", 0.1);
+        double chance = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-chances.damage_negation", 0.1);
         if (Math.random() < chance) {
             event.setCancelled(true);
-            player.getWorld().playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.0f, 1.0f);
+            // 금속이 무언가를 튕겨내는 듯한 날카로운 소리로 변경
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_PLACE, 0.5f, 1.2f);
             player.getWorld().spawnParticle(Particle.PORTAL, player.getLocation().add(0, 1, 0), 30, 0.5, 0.5, 0.5, 0.1);
-            player.sendMessage("§a[!] §f피해 무효화 능력이 발동되었습니다!");
         }
     }
 }

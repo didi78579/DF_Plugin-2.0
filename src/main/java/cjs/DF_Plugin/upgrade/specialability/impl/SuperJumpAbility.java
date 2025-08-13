@@ -1,6 +1,7 @@
 package cjs.DF_Plugin.upgrade.specialability.impl;
 
 import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.settings.ConfigKeys;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import org.bukkit.Bukkit;
 import org.bukkit.Particle;
@@ -9,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
@@ -18,7 +20,6 @@ import java.util.UUID;
 
 public class SuperJumpAbility implements ISpecialAbility {
 
-    private final Map<UUID, Long> sneakStartTimes = new HashMap<>();
     private final Map<UUID, BukkitTask> chargeTasks = new HashMap<>();
     private final Map<UUID, Boolean> isSuperJumpCharged = new HashMap<>();
     private final Map<UUID, Boolean> hasAirDashed = new HashMap<>();
@@ -38,8 +39,7 @@ public class SuperJumpAbility implements ISpecialAbility {
     @Override
     public double getCooldown() {
         // 실제 쿨타임은 점프 후 개별적으로 적용됩니다.
-        return DF_Main.getInstance().getUpgradeSettingManager().getConfig().getDouble("ability-cooldowns.super_jump", 15.0);
-    }
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-cooldowns.super_jump", 15.0);    }
 
     @Override
     public void onPlayerToggleSneak(PlayerToggleSneakEvent event, Player player, ItemStack item) {
@@ -52,15 +52,23 @@ public class SuperJumpAbility implements ISpecialAbility {
         if (event.isSneaking()) {
             // 지면에서 웅크리기: 슈퍼 점프 충전 시작
             if (player.isOnGround()) {
-                sneakStartTimes.put(playerUUID, System.currentTimeMillis());
+                // 이전 작업이 있다면 취소
+                cleanupChargeState(playerUUID);
+
                 isSuperJumpCharged.put(playerUUID, false);
                 isSuperJumpState.put(playerUUID, false);
 
-                // 3초 후 충전 완료
-                BukkitTask chargeTask = Bukkit.getScheduler().runTaskLater(DF_Main.getInstance(), () -> {
+                long chargeTicks = (long) (DF_Main.getInstance().getGameConfigManager().getConfig().getDouble(ConfigKeys.SUPER_JUMP_CHARGE_TIME, 3.0) * 20L);
+
+                // 충전 완료 작업 예약
+                BukkitTask chargeTask = new BukkitRunnable() {
+                    @Override
+                    public void run() {
                     player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f);
+                    player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation(), 30, 0.5, 0.1, 0.5, 0.05);
                     isSuperJumpCharged.put(playerUUID, true);
-                }, 60L); // 3초
+                    }
+                }.runTaskLater(DF_Main.getInstance(), chargeTicks);
                 chargeTasks.put(playerUUID, chargeTask);
 
             } else {
@@ -72,19 +80,11 @@ public class SuperJumpAbility implements ISpecialAbility {
             }
         } else {
             // 웅크리기 해제
-            if (sneakStartTimes.containsKey(playerUUID) && player.isOnGround()) {
+            if (chargeTasks.containsKey(playerUUID) && player.isOnGround()) {
                 if (isSuperJumpCharged.getOrDefault(playerUUID, false)) {
                     performSuperJump(player, item);
-                    isSuperJumpState.put(playerUUID, true);
-                    hasAirDashed.put(playerUUID, false);
                 }
-                // 충전 상태와 관계없이 관련 데이터 정리
-                isSuperJumpCharged.remove(playerUUID);
-                sneakStartTimes.remove(playerUUID);
-                if (chargeTasks.containsKey(playerUUID)) {
-                    chargeTasks.get(playerUUID).cancel();
-                    chargeTasks.remove(playerUUID);
-                }
+                cleanupChargeState(playerUUID);
             }
         }
     }
@@ -100,15 +100,40 @@ public class SuperJumpAbility implements ISpecialAbility {
         }
     }
 
+    @Override
+    public void onCleanup(Player player) {
+        UUID playerUUID = player.getUniqueId();
+        cleanupChargeState(playerUUID);
+        isSuperJumpState.remove(playerUUID);
+        hasAirDashed.remove(playerUUID);
+    }
+
+    private void cleanupChargeState(UUID playerUUID) {
+        isSuperJumpCharged.remove(playerUUID);
+        if (chargeTasks.containsKey(playerUUID)) {
+            chargeTasks.get(playerUUID).cancel();
+            chargeTasks.remove(playerUUID);
+        }
+    }
+
     private void performSuperJump(Player player, ItemStack item) {
-        player.setVelocity(player.getVelocity().add(new Vector(0, 2.0, 0)));
+        double jumpVelocity = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble(ConfigKeys.SUPER_JUMP_VELOCITY, 2.0);
+        // 1틱 늦게 속도를 적용하여 서버 물리엔진과의 충돌을 방지합니다.
+        Bukkit.getScheduler().runTask(DF_Main.getInstance(), () -> {
+            player.setVelocity(player.getVelocity().add(new Vector(0, jumpVelocity, 0)));
+        });
+
         player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 1.0f);
+        player.getWorld().spawnParticle(Particle.EXPLOSION, player.getLocation(), 1);
+        isSuperJumpState.put(player.getUniqueId(), true);
+        hasAirDashed.put(player.getUniqueId(), false);
         DF_Main.getInstance().getSpecialAbilityManager().setCooldown(player, this, item);
     }
 
     private void performAirDash(Player player) {
+        double dashVelocityValue = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble(ConfigKeys.SUPER_JUMP_DASH_VELOCITY, 2.5);
         Vector direction = player.getLocation().getDirection().normalize();
-        Vector dashVelocity = direction.multiply(2.5).setY(0.2);
+        Vector dashVelocity = direction.multiply(dashVelocityValue).setY(0.2);
         player.setVelocity(dashVelocity);
         player.playSound(player.getLocation(), Sound.ENTITY_GHAST_SHOOT, 0.8f, 1.2f);
     }

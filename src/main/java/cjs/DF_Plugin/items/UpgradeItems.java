@@ -1,7 +1,6 @@
 package cjs.DF_Plugin.items;
 
 import cjs.DF_Plugin.DF_Main;
-import cjs.DF_Plugin.util.ItemBuilder;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -13,7 +12,7 @@ public class UpgradeItems {
     private static final NamespacedKey UPGRADE_STONE_KEY = new NamespacedKey(DF_Main.getInstance(), "upgrade_stone");
 
     public static ItemStack createUpgradeStone(int amount) {
-        ItemStack stone = new ItemBuilder(Material.AMETHYST_SHARD)
+        ItemStack stone = new ItemBuilder(Material.ECHO_SHARD)
                 .withName("§d강화석")
                 .withLore("§7장비를 개조하는 데 사용되는 신비한 광물입니다.")
                 .withPDCString(UPGRADE_STONE_KEY, "true")

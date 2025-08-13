@@ -1,12 +1,9 @@
 # DarkForest 2.0 메인 설정 파일
+# 모든 플러그인 설정은 이 파일에서 관리됩니다.
 
 # ==================================================================
-# 게임 모드 프리셋
+# 게임 모드 프리셋 & 시스템 토글
 # ==================================================================
-# 사용 가능한 게임 모드: darkforest, pylon, upgrade
-# darkforest: 모든 기능 활성화 (기본값)
-# pylon: 파일런 관련 기능만 활성화 (강화, 인챈트 등 비활성화)
-# upgrade: 강화 관련 기능만 활성화 (파일런, 이벤트 등 비활성화)
 game-mode: darkforest
 
 # ==================================================================
@@ -18,45 +15,221 @@ system-toggles:
   upgrade: true
   events: true # 보급, 엔드 이벤트 등
 
-# ==================================================================
-# 세부 설정
-# ==================================================================
 
-# 사망 타이머 설정
+# ==================================================================
+# 인첸트 시스템 (Enchantment System)
+# ==================================================================
+enchanting:
+  # 마석 조합 시 생성되는 개수
+  recipe-output-amount: 4
+  # 레벨별 강화 확률 설정 (success, failure, downgrade, destroy의 합은 1.0)
+  level-settings:
+    '0': { success: 0.90, failure: 0.10, downgrade: 0.0, destroy: 0.0 }
+    '1': { success: 0.80, failure: 0.20, downgrade: 0.0, destroy: 0.0 }
+    '2': { success: 0.70, failure: 0.30, downgrade: 0.0, destroy: 0.0 }
+    '3': { success: 0.60, failure: 0.40, downgrade: 0.0, destroy: 0.0 }
+    '4': { success: 0.50, failure: 0.50, downgrade: 0.0, destroy: 0.0 }
+    '5': { success: 0.50, failure: 0.40, downgrade: 0.08, destroy: 0.02 }
+    '6': { success: 0.50, failure: 0.35, downgrade: 0.10, destroy: 0.05 }
+    '7': { success: 0.50, failure: 0.25, downgrade: 0.15, destroy: 0.10 }
+    '8': { success: 0.50, failure: 0.10, downgrade: 0.20, destroy: 0.20 }
+    '9': { success: 0.50, failure: 0.0, downgrade: 0.0, destroy: 0.50 }
+  # 특수 능력 재사용 대기시간 설정
+  cooldown:
+    per-weapon-cooldown: true
+  # 각 특수 능력의 기본 재사용 대기시간(초)
+  ability-cooldowns:
+    super_jump: 0.0
+    double_jump: 0.0
+    supercharge: 5.0
+    laser_shot: 0.0
+    void_riptide: 30.0
+    vampirism: 90.0
+    shield_bash: 150.0
+    stun: 120.0
+    grappling_hook: 120.0
+    grab: 60.0
+    parricide: 60.0
+  # 확률 기반 특수 능력의 발동 확률 설정
+  ability-chances:
+    damage_negation: 0.07 # 7%
+  # 각 특수 능력의 세부 속성 설정
+  ability-attributes:
+    super_jump: { charge-time-seconds: 5.0, jump-velocity: 2.0, dash-velocity: 2.5 }
+    double_jump: { dash-velocity-multiplier: 1.3, dash-y-velocity: 0.5, pvp-cooldown-seconds: 30.0 }
+    supercharge: { charge-time-seconds: 8.0, charged-duration-seconds: 5.0, damage: 20.0, knockback-bonus: 2, passive-max-health-damage-percent-per-level: 1.5, passive-max-health-damage-max-percent: 15.0 }
+    laser_shot: { required-level: 10, velocity-multiplier: 3.0, glow-duration-seconds: 10, passive-damage-per-level: 0.5 }
+    void_riptide: { required-level: 10, riptide-velocity-multiplier: 2.0, spread-radius: 3.0, spread-velocity-multiplier: 0.1, slowness-duration-seconds: 3.0, slowness-level: 2 }
+    vampirism: { health-steal-percent: 40.0, damage-multiplier: 0.5 }
+    shield_bash: { dash-strength: 2.0, shockwave-delay-ticks: 6, shockwave-radius-x: 3.0, shockwave-radius-y: 2.0, shockwave-radius-z: 3.0, launch-strength: 1.2 }
+    stun: { duration-seconds: 1.5 }
+    grappling_hook: { range: 30, pull-strength: 2.5 }
+    grab: { pull-strength: 2.5, cast-velocity-multiplier: 3.0, cast-max-velocity: 10.0, upward-force: 1.2, max-pull-strength: 10.0 }
+    parricide: { shield-cooldown-seconds: 30 }
+  # 장비 종류별 강화 당 보너스 속성 설정
+  attribute-bonuses:
+    chestplate: { health-per-level: 2.0 }
+    boots: { speed-multiplier-per-level: 0.05 }
+    leggings: { health-per-level: 2.0 }
+    helmet: { projectile-protection-per-level: 0.4, fire-protection-per-level: 0.4, blast-protection-per-level: 0.4 }
+    pickaxe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
+    shovel: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
+    axe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
+    hoe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
+    fishing_rod: { unbreaking-per-level: 0.5, lure-per-level: 0.5, luck_of_the_sea-per-level: 0.5 }
+    shield: { unbreaking-per-level: 1.0 }
+    sword: { attack-speed-per-level: 0.3 }
+
+# ==================================================================
+# 파일런 시스템 (Pylon System)
+# ==================================================================
+pylon:
+  # 가문당 최대 파일런 설치 개수
+  max-pylons-per-clan: 4
+  # 파일런 설치 조건
+  installation:
+    # 해수면(y=63) 이하에만 설치 가능하도록 강제
+    require-below-sea-level: true
+  # 파일런 주변 영역 효과 설정
+  area-effects:
+    # 효과 반경 (블록)
+    radius: 50
+    # 아군에게 이로운 효과(재생) 부여 활성화
+    ally-buff-enabled: true
+    # 적에게 해로운 효과(구속) 부여 활성화
+    enemy-debuff-enabled: true
+  # 파일런 상점 설정
+  shop:
+    recon-firework: # 정찰용 폭죽
+      cost-level: 50
+    return-scroll: # 귀환 주문서
+      cost-level: 30
+    magic-stone-exchange: # 마석 교환
+      cost-level: 40
+      gained: 128
+    upgrade-stone-exchange: # 강화석 교환
+      cost-level: 40
+      gained: 128
+    aux-core: # 보조 파일런 코어
+      cost-level: 100
+  # 팀원 모집
+  recruitment:
+    # 모집 방식: "select" 또는 "roulette"
+    mode: "roulette"
+    # 가문원 1명당 모집 비용 (다이아몬드)
+    cost-per-member: 64
+    # 가문 최대 인원수
+    max-members: 4
+  # 사망 유예 및 부활
+  death-ban:
+    enabled: true
+    duration-minutes: 60
+    resurrection-cost-per-minute: 1
+  # 파일런 회수
+  retrieval:
+    cooldown-hours: 24
+    reinstall-duration-hours: 2
+  # 정찰 불꽃
+  recon-firework:
+    enabled: true
+    cooldown-hours: 12
+    return-duration-minutes: 1
+  # 선물 상자
+  giftbox:
+    cooldown-hours: 4
+    min-reward-sets: 4
+    max-reward-sets: 8
+  # 파일런 기능 활성화 토글 (이전 features 섹션)
+  features:
+    storage: true
+    return-scroll: true
+    multi-core: false
+    clan-nether: true
+
+# ==================================================================
+# 사망 & 부활 (Death & Respawn)
+# ==================================================================
 death-timer:
-  price: 1
-  death-count: 1
-  time: 60
+  duration-minutes: 5 # 부활 대기시간 (분). 0으로 설정 시 비활성화됩니다.
+# ==================================================================
+# 월드 & 게임 규칙 (World & Game Rules)
+# ==================================================================
+world:
+  border:
+    overworld-size: 20000
+    end-enabled: true
+    end-size: 1000
+  rules:
+    keep-inventory: true
+    location-info-disabled: true
+    phantom-disabled: true
+    totem-enabled: false
+    enderchest-enabled: false
+    potion-limit: 4
+    # 월드 난이도 (PEACEFUL, EASY, NORMAL, HARD)
+    difficulty: HARD
 
-# 파일런 기능 설정
-pylon-features:
-  storage: true
-  return-scroll: true
-  multi-core: false
-  clan-nether: true
 
-# 월드보더 설정
-worldborder:
-  overworld-size: 20000
-  end-enabled: true
 
-# 유틸리티 설정
-utility:
-  keep-inventory: true
-  location-info-disabled: true
-  phantom-disabled: true
+# ==================================================================
+# 아이템 & 레시피 (Items & Recipes)
+# ==================================================================
+items:
   notched-apple-recipe: true
-  totem-enabled: false
-  enderchest-enabled: false
-  potion-limit: 4
-  supply-drop-enabled: true
+  op-enchant:
+    breach-enabled: false
+    thorns-enabled: false
 
-# OP 인챈트 설정
-op-enchant:
-  breach-enabled: false
-  thorns-enabled: false
-
-# 보스몹 배율 설정 (체력 및 공격력 배율)
+# ==================================================================
+# 보스 & 이벤트 (Bosses & Events)
+# ==================================================================
 boss-mob-strength:
   ender_dragon: 2.0
   wither: 2.0
+events:
+  supply-drop-enabled: true
+  # 게임 중 매일 발생하는 보급 이벤트
+  supply-drop:
+    # 이벤트 활성화 여부
+    enabled: true
+    # 매일 이벤트가 발생할 확률 (0.0 ~ 1.0)
+    chance-per-day: 0.05 # 5%
+    # 제단 생성 후 보급(알 파괴 가능)까지의 대기 시간 (시간)
+    spawn-delay-hours: 1
+    # 알을 파괴하는 데 걸리는 시간 (초)
+    break-duration-seconds: 8
+    # 알 파괴 후 제단이 사라지기까지의 시간 (분)
+    cleanup-delay-minutes: 1
+
+# ==================================================================
+# 엔드 이벤트 (End Event)
+# ==================================================================
+end-event:
+  # 엔드가 현재 열려있는지 여부 (플러그인이 관리하는 값이므로 직접 수정하지 마세요)
+  is-open: false
+  # 엔드가 열리도록 예약된 시간 (플러그인이 관리하는 값이므로 직접 수정하지 마세요)
+  scheduled-open-time: -1
+  # 엔더 드래곤 처치 후 보상 뿌리기 설정
+  rewards:
+    # 보상이 흩뿌려질 영역의 한 변의 길이 (중심 기준)
+    area-size: 100
+    # 보상이 드롭될 Y 좌표
+    drop-y-level: 200
+    # 드롭될 아이템 묶음(스택)의 최소/최대 크기
+    min-stack-size: 2
+    max-stack-size: 4
+    # 드롭될 총 아이템 개수의 최소/최대값
+    min-total-quantity: 1000
+    max-total-quantity: 2000
+  # 엔드 월드 붕괴 지연 시간 (분)
+  collapse-delay-minutes: 10
+
+# ==================================================================
+# 기타 유틸리티 (Misc. Utilities)
+# ==================================================================
+utility:
+  welcome-message: true
+  # 가문 채팅 접두사 활성화
+  clan-chat-prefix-enabled: true
+  # 킬 로그 메시지 활성화
+  kill-log-enabled: true
