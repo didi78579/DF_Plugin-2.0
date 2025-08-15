@@ -238,26 +238,36 @@ public class PylonAreaManager {
 
     private void spawnBoundaryParticles(Location center) {
         World world = center.getWorld();
-        if (world == null) return;
+        if (world == null) return; // 월드가 로드되지 않았으면 중단
 
         int radius = configManager.getConfig().getInt("pylon.area-effects.radius", 50);
+        int radiusSquared = radius * radius;
+
         // 파티클 밀도를 높여 경계선이 더 촘촘하게 보이도록 합니다.
         final int points = 150;
         for (int i = 0; i < points; i++) {
             double angle = 2 * Math.PI * i / points;
             double x = center.getX() + radius * Math.cos(angle);
             double z = center.getZ() + radius * Math.sin(angle);
+            Location particlePoint = new Location(world, x, center.getY(), z);
 
-            spawnWallParticle(world, (int) x, (int) z);
+            // 이 파티클 위치가 다른 파일런의 영역 내부에 있는지 확인합니다.
+            boolean isInsideAnotherPylon = protectedPylons.keySet().stream()
+                    .map(PluginUtils::deserializeLocation)
+                    .filter(otherCenter -> otherCenter != null && !otherCenter.equals(center) && otherCenter.getWorld().equals(world))
+                    .anyMatch(otherCenter -> distanceSquared2D(particlePoint, otherCenter) < radiusSquared);
+
+            // 다른 파일런의 영역 내부에 있지 않은, 즉 최외곽 경계에만 파티클을 생성합니다.
+            if (!isInsideAnotherPylon) {
+                spawnWallParticle(world, (int) x, (int) z);
+            }
         }
     }
 
     private void spawnWallParticle(World world, int x, int z) {
         Block highestBlock = world.getHighestBlockAt(x, z);
-        Location baseLoc = highestBlock.getLocation().add(0.5, 1.2, 0.5); // 블록 중앙, 약간 위
-        // 파티클을 수직으로 여러 개 생성하여 더 크고 굵은 '벽' 효과를 줍니다.
-        for (double yOffset = 0; yOffset <= 1.5; yOffset += 0.75) {
-            world.spawnParticle(Particle.SOUL_FIRE_FLAME, baseLoc.clone().add(0, yOffset, 0), 1, 0, 0, 0, 0);
-        }
+        Location particleLoc = highestBlock.getLocation().add(0.5, 1.2, 0.5); // 블록 중앙, 약간 위
+        // 단일 파티클을 생성하여 '선' 효과를 줍니다.
+        world.spawnParticle(Particle.SOUL_FIRE_FLAME, particleLoc, 1, 0, 0, 0, 0);
     }
 }
