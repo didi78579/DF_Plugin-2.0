@@ -57,11 +57,14 @@ public class PylonProtectionListener implements Listener {
 
         // Case 1: Player is breaking their own clan's pylon (retrieval)
         if (victimClan.equals(attackerClan)) {
-            // Retrieval logic handles event cancellation and structure removal
-            plugin.getPylonManager().getRetrievalManager().handlePylonRetrieval(player, block, victimClan);
+            // 회수 로직을 호출하고, 그 결과에 따라 파괴 이벤트를 처리합니다.
+            boolean success = plugin.getPylonManager().getRetrievalManager().handlePylonRetrieval(player, block, victimClan);
+            if (!success) {
+                // 회수 실패(쿨타임, 권한 등) 시 파괴를 취소합니다.
+                event.setCancelled(true);
+            }
             return;
         }
-
         // Case 2: Attacker is clanless
         if (attackerClan == null) {
             player.sendMessage("§c가문 소속원만 다른 가문의 파일런을 파괴할 수 있습니다.");

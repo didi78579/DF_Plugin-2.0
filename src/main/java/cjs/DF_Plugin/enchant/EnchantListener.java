@@ -54,16 +54,20 @@ public class EnchantListener implements Listener {
         }
 
         // 중앙 슬롯 플레이스홀더
-        ItemStack placeholder = new ItemStack(Material.BOOK);
+        gui.setItem(ITEM_SLOT, createPlaceholder());
+
+        player.openInventory(gui);
+    }
+
+    private ItemStack createPlaceholder() {
+        ItemStack placeholder = new ItemStack(Material.ENCHANTED_BOOK);
         ItemMeta meta = placeholder.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§d마법 부여");
             meta.setLore(Arrays.asList("§7이곳에 아이템을 올려두고", "§7좌클릭하여 마법을 부여하세요."));
             placeholder.setItemMeta(meta);
         }
-        gui.setItem(ITEM_SLOT, placeholder);
-
-        player.openInventory(gui);
+        return placeholder;
     }
 
     @EventHandler
@@ -72,27 +76,52 @@ public class EnchantListener implements Listener {
 
         Player player = (Player) event.getWhoClicked();
         Inventory topInventory = event.getView().getTopInventory();
-        ItemStack cursorItem = event.getCursor();
-        ItemStack currentItem = event.getCurrentItem();
+        Inventory clickedInventory = event.getClickedInventory();
 
-        event.setCancelled(true);
+        if (clickedInventory == null) {
+            return;
+        }
 
-        if (event.getRawSlot() == ITEM_SLOT) {
-            // 중앙 슬롯 클릭
-            if (cursorItem != null && cursorItem.getType() != Material.AIR) {
-                // 손에 아이템을 들고 중앙 슬롯을 클릭 -> 아이템 넣기
-                topInventory.setItem(ITEM_SLOT, cursorItem.clone());
-                player.setItemOnCursor(null);
-            } else if (currentItem != null && currentItem.getType() != Material.BOOK) {
-                // 중앙 슬롯에 아이템이 있을 때 클릭
-                if (event.isLeftClick()) { // 좌클릭: 인챈트 시도
-                    enchantManager.attemptEnchant(player, currentItem);
-                } else if (event.isRightClick()) { // 우클릭: 아이템 빼기
-                    player.getInventory().addItem(currentItem);
-                    topInventory.setItem(ITEM_SLOT, new ItemStack(Material.AIR)); // 슬롯 비우기
-                    openEnchantGUI(player); // GUI 초기화
+        // --- GUI (Top Inventory) 상호작용 ---
+        if (clickedInventory.equals(topInventory)) {
+            event.setCancelled(true);
+
+            if (event.getSlot() == ITEM_SLOT) {
+                ItemStack cursorItem = event.getCursor();
+                ItemStack itemInSlot = topInventory.getItem(ITEM_SLOT);
+
+                // 커서의 아이템을 슬롯에 놓기
+                if (cursorItem != null && cursorItem.getType() != Material.AIR) {
+                    if (itemInSlot == null || itemInSlot.getType() == Material.AIR || itemInSlot.getType() == Material.ENCHANTED_BOOK) {
+                        topInventory.setItem(ITEM_SLOT, cursorItem.clone());
+                        player.setItemOnCursor(null);
+                    }
+                }
+                // 슬롯에 있는 아이템과 상호작용
+                else if (itemInSlot != null && itemInSlot.getType() != Material.ENCHANTED_BOOK) {
+                    if (event.isLeftClick()) { // 좌클릭: 인챈트 시도
+                        enchantManager.attemptEnchant(player, itemInSlot);
+                    } else if (event.isRightClick()) { // 우클릭: 아이템 빼기
+                        player.getInventory().addItem(itemInSlot);
+                        topInventory.setItem(ITEM_SLOT, createPlaceholder());
+                    }
                 }
             }
+        }
+        // --- 플레이어 인벤토리 (Bottom Inventory) 상호작용 ---
+        else if (clickedInventory.equals(event.getView().getBottomInventory())) {
+            ItemStack clickedItem = event.getCurrentItem();
+            if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
+
+            // GUI 슬롯이 비어있으면 아이템 이동
+            ItemStack itemInGuiSlot = topInventory.getItem(ITEM_SLOT);
+            if (itemInGuiSlot == null || itemInGuiSlot.getType() == Material.AIR || itemInGuiSlot.getType() == Material.ENCHANTED_BOOK) {
+                event.setCancelled(true);
+                topInventory.setItem(ITEM_SLOT, clickedItem.clone());
+                event.setCurrentItem(null);
+                player.updateInventory();
+            }
+            // 슬롯이 차있으면, 이벤트 취소 없이 일반적인 인벤토리 상호작용 허용
         }
     }
 
@@ -100,7 +129,7 @@ public class EnchantListener implements Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!event.getView().getTitle().equals(GUI_TITLE)) return;
         ItemStack item = event.getInventory().getItem(ITEM_SLOT);
-        if (item != null && item.getType() != Material.BOOK && item.getType() != Material.AIR) {
+        if (item != null && item.getType() != Material.ENCHANTED_BOOK && item.getType() != Material.AIR) {
             ((Player) event.getPlayer()).getInventory().addItem(item);
         }
     }

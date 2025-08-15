@@ -22,6 +22,7 @@ import cjs.DF_Plugin.player.stats.StatsListener;
 import cjs.DF_Plugin.player.stats.StatsManager;
 import cjs.DF_Plugin.pylon.PylonManager;
 import cjs.DF_Plugin.pylon.beaconinteraction.*;
+import cjs.DF_Plugin.pylon.item.ReturnScrollListener;
 import cjs.DF_Plugin.pylon.beacongui.recon.ReconManager;
 import cjs.DF_Plugin.pylon.beacongui.giftbox.GiftBoxRefillTask;
 import cjs.DF_Plugin.pylon.beacongui.BeaconGUIListener;
@@ -122,6 +123,7 @@ public final class DF_Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BeaconGUIListener(this, this.pylonManager.getGuiManager()), this);
         getServer().getPluginManager().registerEvents(new StatsListener(this), this);
         getServer().getPluginManager().registerEvents(new SpecialItemListener(this), this);
+        getServer().getPluginManager().registerEvents(new ReturnScrollListener(this.pylonManager.getScrollManager()), this);
 
         // 매니저 및 모듈 리스너
         getServer().getPluginManager().registerEvents(this.playerRegistryManager, this);
@@ -131,6 +133,7 @@ public final class DF_Main extends JavaPlugin {
         // 게임 규칙 및 월드 리스너
         getServer().getPluginManager().registerEvents(new GameRuleListener(this), this);
         getServer().getPluginManager().registerEvents(new BossMobListener(this), this);
+        getServer().getPluginManager().registerEvents(new BossDeathListener(this), this);
         getServer().getPluginManager().registerEvents(new EnchantmentRuleListener(this), this);
         getServer().getPluginManager().registerEvents(new PylonProtectionListener(this), this);
         getServer().getPluginManager().registerEvents(new EndEventListener(this), this);

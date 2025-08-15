@@ -76,6 +76,7 @@ public class PylonRetrievalManager {
 
         clan.clearPylonLocations();
         clan.setLastRetrievalTime(System.currentTimeMillis());
+        clan.setLastAuxiliaryRetrievalTime(System.currentTimeMillis());
         plugin.getClanManager().getStorageManager().saveClan(clan);
 
         InventoryUtils.giveOrDropItems(leader, pylonItems.toArray(new ItemStack[0]));
@@ -88,26 +89,49 @@ public class PylonRetrievalManager {
      * @param player 회수하는 플레이어
      * @param pylonBlock 파괴된 파일런 블록
      * @param clan 파일런을 소유한 가문
+     * @return 회수에 성공하면 true, 실패(쿨타임 등)하면 false
      */
-    public void handlePylonRetrieval(Player player, Block pylonBlock, Clan clan) {
+    public boolean handlePylonRetrieval(Player player, Block pylonBlock, Clan clan) {
         // 가문 대표만 회수 가능하도록 제한합니다.
         if (!clan.getLeader().equals(player.getUniqueId())) {
             player.sendMessage(PREFIX + "§c자신의 가문 파일런은 가문장만 회수할 수 있습니다.");
-            return;
+            return false;
         }
 
         String pylonLocStr = PluginUtils.serializeLocation(pylonBlock.getLocation());
         PylonType pylonType = clan.getPylonType(pylonLocStr);
 
-        clan.removePylonLocation(pylonLocStr);
-        plugin.getClanManager().getStorageManager().saveClan(clan);
-        plugin.getPylonManager().getAreaManager().removeProtectedPylon(pylonBlock.getLocation());
-        plugin.getPylonManager().getStructureManager().removeBaseAndBarrier(pylonBlock.getLocation());
+        // 주 파일런은 개별 회수 불가, 보조 파일런만 개별 회수 가능
+        if (pylonType == PylonType.MAIN_CORE) {
+            player.sendMessage(PREFIX + "§c주 파일런은 개별적으로 회수할 수 없습니다. '/df clan retrieve' 명령어를 사용하세요.");
+            return false;
+        }
 
-        ItemStack itemToGive = (pylonType == PylonType.MAIN_CORE) ? PylonItemFactory.createMainCore() : PylonItemFactory.createAuxiliaryCore();
-        InventoryUtils.giveOrDropItems(player, itemToGive);
-        player.sendMessage(PREFIX + "파일런을 성공적으로 회수했습니다.");
+        if (pylonType == PylonType.AUXILIARY) {
+            // 보조 파일런 회수 쿨타임을 확인합니다 (10분).
+            long cooldownMillis = TimeUnit.MINUTES.toMillis(10);
+            if (System.currentTimeMillis() - clan.getLastAuxiliaryRetrievalTime() < cooldownMillis) {
+                long remainingMillis = cooldownMillis - (System.currentTimeMillis() - clan.getLastAuxiliaryRetrievalTime());
+                String remainingTime = String.format("%02d분 %02d초",
+                        TimeUnit.MILLISECONDS.toMinutes(remainingMillis),
+                        TimeUnit.MILLISECONDS.toSeconds(remainingMillis) % 60);
+                player.sendMessage(PREFIX + "§c다음 보조 파일런 회수까지 " + remainingTime + " 남았습니다.");
+                return false;
+            }
 
-        pylonBlock.setType(Material.AIR);
+            clan.removePylonLocation(pylonLocStr);
+            clan.setLastAuxiliaryRetrievalTime(System.currentTimeMillis());
+            plugin.getClanManager().getStorageManager().saveClan(clan);
+            plugin.getPylonManager().getAreaManager().removeProtectedPylon(pylonBlock.getLocation());
+            plugin.getPylonManager().getStructureManager().removeBaseAndBarrier(pylonBlock.getLocation());
+
+            InventoryUtils.giveOrDropItems(player, PylonItemFactory.createAuxiliaryCore());
+            player.sendMessage(PREFIX + "보조 파일런을 성공적으로 회수했습니다.");
+
+            pylonBlock.setType(Material.AIR);
+            return true;
+        }
+
+        return false; // Should not be reached
     }
 }

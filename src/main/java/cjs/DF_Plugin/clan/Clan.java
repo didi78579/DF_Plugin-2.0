@@ -19,7 +19,8 @@ public class Clan {
     private long lastRetrievalTime;
     private long lastReconFireworkTime;
     private long lastGiftBoxTime;
-
+    private long lastAuxiliaryRetrievalTime;
+    
     public Clan(String name, UUID leader, ChatColor color) {
         this.name = name;
         this.leader = leader;
@@ -34,6 +35,7 @@ public class Clan {
         this.color = ChatColor.getByChar(config.getString("color", "f").charAt(0));
         this.lastRetrievalTime = config.getLong("last-retrieval-time", 0);
         this.lastReconFireworkTime = config.getLong("last-recon-firework-time", 0);
+        this.lastAuxiliaryRetrievalTime = config.getLong("last-auxiliary-retrieval-time", 0);
         this.lastGiftBoxTime = config.getLong("last-giftbox-time", 0);
 
         // Load pylon locations and types
@@ -65,6 +67,7 @@ public class Clan {
         config.set("color", String.valueOf(color.getChar()));
         config.set("last-retrieval-time", lastRetrievalTime);
         config.set("last-recon-firework-time", lastReconFireworkTime);
+        config.set("last-auxiliary-retrieval-time", lastAuxiliaryRetrievalTime);
         config.set("last-giftbox-time", lastGiftBoxTime);
 
         // Save pylon locations and types
@@ -99,7 +102,14 @@ public class Clan {
     public void setLastRetrievalTime(long time) { this.lastRetrievalTime = time; }
     public void setLastReconFireworkTime(long time) { this.lastReconFireworkTime = time; }
     public void setLastGiftBoxTime(long time) { this.lastGiftBoxTime = time; }
+    public long getLastAuxiliaryRetrievalTime() {
+        return lastAuxiliaryRetrievalTime;
+    }
+    public void setLastAuxiliaryRetrievalTime(long lastAuxiliaryRetrievalTime) {
+        this.lastAuxiliaryRetrievalTime = lastAuxiliaryRetrievalTime;
+    }
 
+    
     public boolean hasAuxiliaryPylons() {
         return pylonLocations.containsValue(PylonType.AUXILIARY);
     }

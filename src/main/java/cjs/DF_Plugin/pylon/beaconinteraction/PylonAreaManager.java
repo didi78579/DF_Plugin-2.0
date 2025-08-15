@@ -74,21 +74,42 @@ public class PylonAreaManager {
      * @return 구조물의 일부이면 true
      */
     public boolean isPylonStructureBlock(Location location) {
+        return isPylonStructureBlock(location, null);
+    }
+
+    /**
+     * 지정된 위치의 블록이 파일런의 보호받는 구조물(기반, 배리어)의 일부인지 확인합니다.
+     * 특정 파일런의 구조물은 검사에서 제외할 수 있습니다.
+     * @param location 확인할 위치
+     * @param pylonToIgnore 검사에서 제외할 파일런의 위치
+     * @return 다른 파일런의 구조물의 일부이면 true
+     */
+    public boolean isPylonStructureBlock(Location location, Location pylonToIgnore) {
+        Location blockLocation = location.getBlock().getLocation();
+        Location ignoreLocation = (pylonToIgnore != null) ? pylonToIgnore.getBlock().getLocation() : null;
+
         for (String pylonLocStr : protectedPylons.keySet()) {
             Location pylonLoc = PluginUtils.deserializeLocation(pylonLocStr);
-            if (pylonLoc == null || !pylonLoc.getWorld().equals(location.getWorld())) {
+            if (pylonLoc == null || !pylonLoc.getWorld().equals(blockLocation.getWorld())) {
+                continue;
+            }
+
+            // 무시할 파일런 위치와 같다면, 이 파일런에 대한 검사는 건너뜁니다.
+            if (ignoreLocation != null && pylonLoc.equals(ignoreLocation)) {
                 continue;
             }
 
             // 기반 블록(y-1의 3x3 영역)인지 확인
-            if (location.getBlockY() == pylonLoc.getBlockY() - 1) {
-                if (Math.abs(location.getBlockX() - pylonLoc.getBlockX()) <= 1 &&
-                    Math.abs(location.getBlockZ() - pylonLoc.getBlockZ()) <= 1) {
+            if (blockLocation.getBlockY() == pylonLoc.getBlockY() - 1) {
+                if (Math.abs(blockLocation.getBlockX() - pylonLoc.getBlockX()) <= 1 &&
+                    Math.abs(blockLocation.getBlockZ() - pylonLoc.getBlockZ()) <= 1) {
                     return true;
                 }
             }
             // 배리어 블록(비콘 위 수직 기둥)인지 확인
-            if (location.getBlockX() == pylonLoc.getBlockX() && location.getBlockZ() == pylonLoc.getBlockZ() && location.getBlockY() > pylonLoc.getBlockY()) {
+            if (blockLocation.getBlockX() == pylonLoc.getBlockX() &&
+                blockLocation.getBlockZ() == pylonLoc.getBlockZ() &&
+                blockLocation.getBlockY() > pylonLoc.getBlockY()) {
                 return true;
             }
         }
@@ -212,7 +233,7 @@ public class PylonAreaManager {
                     }
                 });
             }
-        }.runTaskTimer(plugin, 0L, 40L); // 2초마다 실행
+        }.runTaskTimer(plugin, 0L, 10L); // 0.5초마다 실행하여 끊김 없는 효과를 연출
     }
 
     private void spawnBoundaryParticles(Location center) {
@@ -220,19 +241,23 @@ public class PylonAreaManager {
         if (world == null) return;
 
         int radius = configManager.getConfig().getInt("pylon.area-effects.radius", 50);
-        final int points = 75; // 파티클 밀도 (고정값)
+        // 파티클 밀도를 높여 경계선이 더 촘촘하게 보이도록 합니다.
+        final int points = 150;
         for (int i = 0; i < points; i++) {
             double angle = 2 * Math.PI * i / points;
             double x = center.getX() + radius * Math.cos(angle);
             double z = center.getZ() + radius * Math.sin(angle);
 
-            spawnParticleAtTop(world, (int) x, (int) z);
+            spawnWallParticle(world, (int) x, (int) z);
         }
     }
 
-    private void spawnParticleAtTop(World world, int x, int z) {
+    private void spawnWallParticle(World world, int x, int z) {
         Block highestBlock = world.getHighestBlockAt(x, z);
-        Location particleLoc = highestBlock.getLocation().add(0.5, 1.2, 0.5); // 블록 중앙, 약간 위
-        world.spawnParticle(Particle.SOUL_FIRE_FLAME, particleLoc, 1, 0, 0, 0, 0); // 파티클 종류 (고정값)
+        Location baseLoc = highestBlock.getLocation().add(0.5, 1.2, 0.5); // 블록 중앙, 약간 위
+        // 파티클을 수직으로 여러 개 생성하여 더 크고 굵은 '벽' 효과를 줍니다.
+        for (double yOffset = 0; yOffset <= 1.5; yOffset += 0.75) {
+            world.spawnParticle(Particle.SOUL_FIRE_FLAME, baseLoc.clone().add(0, yOffset, 0), 1, 0, 0, 0, 0);
+        }
     }
 }

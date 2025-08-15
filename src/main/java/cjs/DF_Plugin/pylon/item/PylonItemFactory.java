@@ -93,8 +93,8 @@ public class PylonItemFactory {
                     "§7가문 파일런 영역 내의 안전한 곳으로",
                     "§7자신을 소환합니다.",
                     "",
-                    "§e[사용법] §f손에 들고 F키를 눌러 사용합니다.",
-                    "§c(5초 시전, 피격 시 취소)"
+                    "§e[사용법] §f손에 들고 우클릭하여 사용합니다.",
+                    "§c(시전 중 이동하거나 피격 시 취소)"
             ));
             meta.addEnchant(Enchantment.FORTUNE, 1, false);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);

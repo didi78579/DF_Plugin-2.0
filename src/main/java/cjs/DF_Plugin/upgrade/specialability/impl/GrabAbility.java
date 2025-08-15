@@ -34,7 +34,7 @@ public class GrabAbility implements ISpecialAbility {
 
     @Override
     public double getCooldown() {
-        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-cooldowns.grab", 60.0);    }
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble(ConfigKeys.GRAB_COOLDOWN, 60.0);    }
 
     @Override
     public void onPlayerFish(PlayerFishEvent event, Player player, ItemStack item) {

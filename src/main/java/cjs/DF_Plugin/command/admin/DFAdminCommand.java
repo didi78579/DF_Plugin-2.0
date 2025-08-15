@@ -59,7 +59,7 @@ public class DFAdminCommand implements CommandExecutor {
             case "set" -> setCommand.handle(sender, subArgs);
             case "register" -> handleRegisterCommand(sender, subArgs);
             case "setstat" -> handleSetStatCommand(sender, subArgs);
-            case "confirmstat" -> handleConfirmStatCommand(sender);
+            case "confirmstat" -> handleConfirmStatCommand(sender, subArgs);
             case "cancelstat" -> handleCancelStatCommand(sender);
             case "controlender" -> handleControlEnderCommand(sender, subArgs);
             case "unban" -> handleUnbanCommand(sender, subArgs);
@@ -166,18 +166,22 @@ public class DFAdminCommand implements CommandExecutor {
 
     private void handleSetStatCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) return;
-        if (args.length < 2) return;
+        // 사용법: /df admin setstat <플레이어이름> <스탯종류> <값>
+        if (args.length < 3) return;
         try {
-            StatType type = StatType.valueOf(args[0].toUpperCase());
-            int value = Integer.parseInt(args[1]);
+            // args[0]은 targetName이지만, StatsManager는 세션 관리자인 player를 기준으로 처리하므로 무시합니다.
+            StatType type = StatType.valueOf(args[1].toUpperCase());
+            int value = Integer.parseInt(args[2]);
             statsManager.updateStatInSession(player, type, value);
         } catch (Exception e) {
             // 채팅 클릭으로 발생하는 명령어이므로, 오류 메시지를 보내지 않습니다.
         }
     }
 
-    private void handleConfirmStatCommand(CommandSender sender) {
+    private void handleConfirmStatCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) return;
+        // 사용법: /df admin confirmstat <플레이어이름>
+        // args[0]은 targetName이지만, StatsManager는 세션 관리자인 player를 기준으로 처리하므로 무시합니다.
         statsManager.confirmAndNext(player);
     }
 

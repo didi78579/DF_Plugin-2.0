@@ -2,6 +2,7 @@ package cjs.DF_Plugin.upgrade;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.items.ItemNameManager;
+import cjs.DF_Plugin.settings.ConfigKeys;
 import cjs.DF_Plugin.items.UpgradeItems;
 import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
 import cjs.DF_Plugin.upgrade.profile.ProfileRegistry;
@@ -81,7 +82,7 @@ public class UpgradeManager {
         // 4. 강화 실행
         consumeStones(player, requiredStones); // 강화석 소모
         FileConfiguration config = plugin.getGameConfigManager().getConfig();
-        String path = "upgrade.level-settings." + currentLevel;
+        String path = ConfigKeys.UPGRADE_LEVEL_SETTINGS + currentLevel;
 
         if (!config.isConfigurationSection(path)) {
             player.sendMessage("§c다음 강화 레벨에 대한 설정이 없습니다. (레벨: " + currentLevel + ")");
@@ -93,9 +94,18 @@ public class UpgradeManager {
         double successChance = config.getDouble(path + ".success", 0.0);
         double failureChance = config.getDouble(path + ".failure", 0.0);
         double downgradeChance = config.getDouble(path + ".downgrade", 0.0);
-        // 파괴 확률은 나머지입니다.
+        // 파괴 확률을 명시적으로 읽어와 부동소수점 오류 및 설정 오류 가능성을 줄입니다.
+        double destroyChance = config.getDouble(path + ".destroy", 0.0);
 
-        double roll = random.nextDouble(); // 0.0 이상 1.0 미만
+        // 확률의 총합을 기준으로 굴림을 정규화하여, 합계가 1이 아니더라도 의도대로 작동하게 합니다.
+        double totalChance = successChance + failureChance + downgradeChance + destroyChance;
+        if (totalChance <= 0) {
+            // 확률 설정이 잘못된 경우, 안전하게 실패(유지) 처리합니다.
+            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 1.0f);
+            return;
+        }
+
+        double roll = random.nextDouble() * totalChance;
 
         if (roll < successChance) {
             // 성공
@@ -109,7 +119,7 @@ public class UpgradeManager {
         } else if (roll < successChance + failureChance) {
             // 실패 (변화 없음)
             player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 1.0f);
-        } else if (roll < successChance + failureChance + downgradeChance) {
+        } else if (roll < successChance + failureChance + downgradeChance) { // This now corresponds to the destroyChance part of the roll
             // 등급 하락
             int newLevel = Math.max(0, currentLevel - 1);
             setUpgradeLevel(item, profile, newLevel);
@@ -181,14 +191,14 @@ public class UpgradeManager {
 
         // 2. 다음 레벨의 확률 정보 추가
         FileConfiguration config = plugin.getGameConfigManager().getConfig();
-        if (!config.getBoolean("upgrade.show-success-chance", true)) {
+        if (!config.getBoolean(ConfigKeys.UPGRADE_SHOW_CHANCE, true)) {
             // 설정이 꺼져있으면 아무것도 하지 않음
         } else if (newLevel >= MAX_UPGRADE_LEVEL) {
             // 아이템이 이미 최대 레벨에 도달한 경우
             lore.add(ChatColor.GOLD + "최대 강화 레벨에 도달했습니다!");
         } else {
             // 다음 강화 레벨에 대한 정보를 yml에서 찾습니다.
-            String path = "upgrade.level-settings." + newLevel;
+            String path = ConfigKeys.UPGRADE_LEVEL_SETTINGS + newLevel;
             if (config.isConfigurationSection(path)) {
                 double success = config.getDouble(path + ".success", 0.0) * 100;
                 double failure = config.getDouble(path + ".failure", 0.0) * 100;

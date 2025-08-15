@@ -6,6 +6,8 @@ import cjs.DF_Plugin.pylon.beaconinteraction.PylonAreaManager;
 import cjs.DF_Plugin.pylon.beaconinteraction.PylonStructureManager;
 import cjs.DF_Plugin.pylon.beaconinteraction.registration.AuxiliaryPylonRegistrationManager;
 import cjs.DF_Plugin.pylon.beaconinteraction.registration.BeaconRegistrationManager;
+import cjs.DF_Plugin.pylon.PylonType;
+import cjs.DF_Plugin.pylon.item.ReturnScrollManager;
 import cjs.DF_Plugin.pylon.beacongui.BeaconGUIManager;
 import cjs.DF_Plugin.pylon.beacongui.recon.ReconManager;
 import cjs.DF_Plugin.pylon.reinstall.PylonReinstallManager;
@@ -13,6 +15,7 @@ import cjs.DF_Plugin.pylon.retrieval.PylonRetrievalManager;
 import cjs.DF_Plugin.pylon.storage.PylonStorageManager;
 import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Location;
+import java.util.Map;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class PylonManager {
@@ -27,6 +30,7 @@ public class PylonManager {
     private final ReconManager reconManager;
     private final PylonStorageManager storageManager;
     private final PylonStructureManager structureManager;
+    private final ReturnScrollManager scrollManager;
 
     public PylonManager(DF_Main plugin) {
         this.plugin = plugin;
@@ -38,7 +42,8 @@ public class PylonManager {
         this.reinstallManager = new PylonReinstallManager(plugin);
         this.reconManager = new ReconManager(plugin);
         this.storageManager = new PylonStorageManager(plugin);
-        this.structureManager = new PylonStructureManager();
+        this.structureManager = new PylonStructureManager(this.areaManager);
+        this.scrollManager = new ReturnScrollManager(plugin);
 
         loadExistingPylons();
         startAreaEffectTask();
@@ -81,15 +86,21 @@ public class PylonManager {
         return structureManager;
     }
 
+    public ReturnScrollManager getScrollManager() {
+        return scrollManager;
+    }
+
     /**
      * 특정 가문의 모든 파일런 기반(철 블록)을 다시 설치하여 안정화시킵니다.
      * @param clan 안정화할 가문
      */
     public void reinitializeAllBases(Clan clan) {
-        for (String locString : clan.getPylonLocations()) {
-            Location pylonLoc = PluginUtils.deserializeLocation(locString);
+        for (Map.Entry<String, PylonType> entry : clan.getPylonLocationsMap().entrySet()) {
+            Location pylonLoc = PluginUtils.deserializeLocation(entry.getKey());
+            PylonType pylonType = entry.getValue();
             if (pylonLoc != null) {
-                structureManager.placeBaseOnly(pylonLoc);
+                // 각 파일런 타입에 맞는 기반을 설치합니다.
+                structureManager.placeBaseOnly(pylonLoc, pylonType);
             }
         }
         clan.broadcastMessage("§b[파일런] §f모든 파일런 기반이 안정화되었습니다.");

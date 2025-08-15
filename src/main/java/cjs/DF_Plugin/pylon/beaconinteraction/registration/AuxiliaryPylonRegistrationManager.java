@@ -17,8 +17,7 @@ public class AuxiliaryPylonRegistrationManager {
 
     public void registerAuxiliaryPylon(Player player, Block beacon, Clan clan) {
         // 1. 구조물 설치
-        plugin.getPylonManager().getStructureManager().placeBaseAndBarrier(beacon.getLocation());
-
+        plugin.getPylonManager().getStructureManager().placeBaseAndBarrier(beacon.getLocation(), PylonType.AUXILIARY);
         // 2. 파일런 정보 등록
         String locationString = PluginUtils.serializeLocation(beacon.getLocation());
         clan.addPylonLocation(locationString, PylonType.AUXILIARY);

@@ -161,10 +161,8 @@ public class PylonShopManager {
         if (player.getLevel() >= requiredLevels) {
             player.setLevel(player.getLevel() - requiredLevels);
             InventoryUtils.giveOrDropItems(player, reward);
-            player.sendMessage("§a" + rewardName + " " + reward.getAmount() + "개를 교환했습니다.");
             player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.2f);
         } else {
-            player.sendMessage("§c레벨이 부족합니다. (필요: " + requiredLevels + " 레벨)");
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
         }
     }

@@ -18,20 +18,20 @@ public class StatsChatEditor {
         editor.sendMessage(" ");
 
         for (StatType type : StatType.values()) {
-            editor.spigot().sendMessage(createStatLine(type, stats.getStat(type)));
+            editor.spigot().sendMessage(createStatLine(target, type, stats.getStat(type)));
         }
 
         editor.sendMessage(" ");
-        editor.spigot().sendMessage(createControls());
+        editor.spigot().sendMessage(createControls(target));
         editor.sendMessage("§7§m-----------------------------------------");
     }
 
-    private static TextComponent createStatLine(StatType type, int level) {
+    private static TextComponent createStatLine(OfflinePlayer target, StatType type, int level) {
         TextComponent line = new TextComponent(" §e" + String.format("%-4s", type.getDisplayName()) + " : ");
 
         for (int i = 1; i <= 5; i++) {
             TextComponent star = new TextComponent(i <= level ? "§e★" : "§7☆");
-            star.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df setstat " + type.name() + " " + i));
+            star.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df admin setstat " + target.getName() + " " + type.name() + " " + i));
             star.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("§f" + i + "점 부여").create()));
             line.addExtra(star);
             line.addExtra(" ");
@@ -39,17 +39,17 @@ public class StatsChatEditor {
         return line;
     }
 
-    private static TextComponent createControls() {
+    private static TextComponent createControls(OfflinePlayer target) {
         TextComponent controls = new TextComponent(" ");
 
         TextComponent confirmButton = new TextComponent("§a§l[확정 및 다음]");
-        confirmButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df confirmstat"));
+        confirmButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df admin confirmstat " + target.getName()));
         confirmButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("§f현재 스탯을 저장하고 다음 플레이어로 넘어갑니다.").create()));
 
         TextComponent spacer = new TextComponent("  ");
 
         TextComponent cancelButton = new TextComponent("§c§l[취소]");
-        cancelButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df cancelstat"));
+        cancelButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df admin cancelstat"));
         cancelButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("§f스탯 평가를 중단합니다.").create()));
 
         controls.addExtra(confirmButton);
