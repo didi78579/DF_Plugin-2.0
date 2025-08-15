@@ -31,3 +31,6 @@ permissions:
   df.admin:
     description: Grants access to all /dfadmin commands.
     default: op
+  df.admin.game:
+    description: 게임을 시작하거나 종료할 수 있는 권한입니다.
+    default: op

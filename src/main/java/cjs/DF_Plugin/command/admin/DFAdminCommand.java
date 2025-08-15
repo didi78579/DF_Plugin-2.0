@@ -44,7 +44,7 @@ public class DFAdminCommand implements CommandExecutor {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 0) {
             sender.sendMessage("§c사용법: /df admin <subcommand>");
-            sender.sendMessage("§c사용 가능한 명령어: gamemode, settings, set, weapon, clan, register, controlender, unban, magicstone");
+            sender.sendMessage("§c사용 가능한 명령어: gamemode, settings, set, weapon, clan, register, controlender, unban, magicstone, game");
 
             return true;
         }
@@ -63,6 +63,7 @@ public class DFAdminCommand implements CommandExecutor {
             case "cancelstat" -> handleCancelStatCommand(sender);
             case "controlender" -> handleControlEnderCommand(sender, subArgs);
             case "unban" -> handleUnbanCommand(sender, subArgs);
+            case "game" -> handleGameCommand(sender, subArgs);
             default -> sender.sendMessage("§c알 수 없는 명령어입니다.");
         }
 
@@ -314,5 +315,30 @@ public class DFAdminCommand implements CommandExecutor {
 
         plugin.getPlayerDeathManager().resurrectPlayer(target.getUniqueId());
         sender.sendMessage("§a플레이어 '" + playerName + "'의 사망 밴을 해제했습니다. 이제 접속할 수 있습니다.");
+    }
+
+    private void handleGameCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("df.admin.game")) {
+            sender.sendMessage("§c이 명령어를 사용할 권한이 없습니다.");
+            return;
+        }
+
+        if (args.length < 1) {
+            sender.sendMessage("§c사용법: /df admin game <start|stop>");
+            return;
+        }
+
+        String action = args[0].toLowerCase();
+        switch (action) {
+            case "start" -> {
+                plugin.getGameStartManager().startGame();
+                sender.sendMessage("§a게임을 시작했습니다.");
+            }
+            case "stop" -> {
+                plugin.getGameStartManager().stopGame();
+                sender.sendMessage("§a게임을 종료했습니다.");
+            }
+            default -> sender.sendMessage("§c알 수 없는 명령어입니다. 사용법: /df admin game <start|stop>");
+        }
     }
 }
