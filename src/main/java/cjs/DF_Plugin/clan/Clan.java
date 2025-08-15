@@ -30,7 +30,15 @@ public class Clan {
 
     public Clan(String name, FileConfiguration config) {
         this.name = name;
-        this.leader = UUID.fromString(config.getString("leader"));
+        String leaderUUIDString = config.getString("leader");
+        if (leaderUUIDString == null || leaderUUIDString.isEmpty()) {
+            throw new IllegalArgumentException("클랜 '" + name + "'의 파일에 리더 UUID가 없거나 비어있습니다.");
+        }
+        try {
+            this.leader = UUID.fromString(leaderUUIDString);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("클랜 '" + name + "'의 리더 UUID가 잘못되었습니다: " + leaderUUIDString);
+        }
         config.getStringList("members").forEach(uuidString -> members.add(UUID.fromString(uuidString)));
         this.color = ChatColor.getByChar(config.getString("color", "f").charAt(0));
         this.lastRetrievalTime = config.getLong("last-retrieval-time", 0);

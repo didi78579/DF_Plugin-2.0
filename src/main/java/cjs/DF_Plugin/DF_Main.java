@@ -147,6 +147,16 @@ public final class DF_Main extends JavaPlugin {
         // 선물상자 자동 리필 작업 시작 (1분마다 확인)
         new GiftBoxRefillTask(this).runTaskTimer(this, 20L * 60, 20L * 60);
 
+        // 서버 로드가 완료된 후 파일런을 로드하여 월드 누락 문제를 방지합니다.
+        getServer().getScheduler().runTask(this, () -> {
+            if (pylonManager != null) {
+                pylonManager.loadExistingPylons();
+            }
+            if (offlinePlayerManager != null) {
+                offlinePlayerManager.loadAndVerifyOfflineStands();
+            }
+        });
+
         getLogger().info("DarkForest 2.0 plugin has been enabled!");
     }
 

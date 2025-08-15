@@ -4,6 +4,7 @@ import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
 import cjs.DF_Plugin.pylon.item.PylonItemFactory;
 import cjs.DF_Plugin.util.PluginUtils;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -53,15 +54,36 @@ public class BeaconInteractionListener implements Listener {
         }
 
         if (isMainCore) {
+            // 해수면 아래 설치 강제 확인
             boolean requireBelowSeaLevel = plugin.getGameConfigManager().isPylonRequireBelowSeaLevel();
             if (requireBelowSeaLevel && block.getLocation().getBlockY() >= block.getWorld().getSeaLevel()) {
-                player.sendMessage(PREFIX + "§c파일런 코어는 해수면 아래에만 설치할 수 있습니다.");
+                player.sendMessage(PREFIX + "§c주 파일런 코어는 해수면 아래에만 설치할 수 있습니다.");
                 event.setCancelled(true);
                 return;
             }
             plugin.getPylonManager().getRegistrationManager().registerPylon(player, block, clan);
 
         } else if (isAuxiliaryCore) {
+            // 해수면 아래 설치 강제 확인
+            boolean requireBelowSeaLevel = plugin.getGameConfigManager().isPylonRequireBelowSeaLevel();
+            if (requireBelowSeaLevel && block.getLocation().getBlockY() >= block.getWorld().getSeaLevel()) {
+                player.sendMessage(PREFIX + "§c보조 파일런은 해수면 아래에만 설치할 수 있습니다.");
+                event.setCancelled(true);
+                return;
+            }
+
+            // 다른 파일런 기반과 겹치는지 확인
+            Location beaconLoc = block.getLocation();
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    if (plugin.getPylonManager().getAreaManager().isPylonStructureBlock(beaconLoc.clone().add(x, -1, z))) {
+                        player.sendMessage(PREFIX + "§c다른 파일런의 기반과 겹치는 위치에는 설치할 수 없습니다.");
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+
             // 보조 파일런은 기존 파일런 영역 내에만 설치 가능
             if (!plugin.getPylonManager().getAreaManager().isLocationInClanPylonArea(clan, block.getLocation())) {
                 player.sendMessage(PREFIX + "§c보조 파일런은 기존 파일런의 영역 내에만 설치할 수 있습니다.");

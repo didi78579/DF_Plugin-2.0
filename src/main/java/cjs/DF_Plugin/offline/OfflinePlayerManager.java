@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -50,6 +51,43 @@ public class OfflinePlayerManager implements Listener {
             dataFolder.mkdirs();
         }
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    }
+
+    /**
+     * 서버 시작 시 월드에 남아있는 모든 오프라인 아바타를 로드하고 유효성을 검사합니다.
+     * 주인이 이미 온라인인 아바타(비정상 종료로 남은 경우)는 제거합니다.
+     */
+    public void loadAndVerifyOfflineStands() {
+        plugin.getLogger().info("오프라인 플레이어 아바타를 불러오는 중...");
+        int verifiedCount = 0;
+        int removedCount = 0;
+
+        for (World world : Bukkit.getWorlds()) {
+            for (ArmorStand stand : world.getEntitiesByClass(ArmorStand.class)) {
+                PersistentDataContainer container = stand.getPersistentDataContainer();
+                if (container.has(OFFLINE_BODY_KEY, PersistentDataType.STRING)) {
+                    String uuidString = container.get(OFFLINE_BODY_KEY, PersistentDataType.STRING);
+                    if (uuidString == null) continue;
+
+                    try {
+                        UUID ownerUUID = UUID.fromString(uuidString);
+                        OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerUUID);
+
+                        // 주인이 온라인 상태라면, 이 아바타는 비정상 종료로 남은 것이므로 제거합니다.
+                        if (owner.isOnline()) {
+                            stand.remove();
+                            removedCount++;
+                        } else {
+                            verifiedCount++;
+                        }
+                    } catch (IllegalArgumentException e) {
+                        plugin.getLogger().warning("오프라인 아바타에서 잘못된 UUID 태그를 발견하여 제거합니다: " + uuidString);
+                        stand.remove();
+                    }
+                }
+            }
+        }
+        plugin.getLogger().info(verifiedCount + "개의 오프라인 플레이어 아바타를 확인했으며, " + removedCount + "개의 오래된 아바타를 제거했습니다.");
     }
 
     @EventHandler
@@ -279,9 +317,9 @@ public class OfflinePlayerManager implements Listener {
 
     private void loadInventory(Player player, File playerFile) {
         YamlConfiguration config = YamlConfiguration.loadConfiguration(playerFile);
-        ItemStack[] main = ((List<ItemStack>) config.getList("inventory")).toArray(new ItemStack[0]);
-        ItemStack[] armor = ((List<ItemStack>) config.getList("armor")).toArray(new ItemStack[0]);
-        ItemStack offhand = config.getItemStack("offhand");
+        ItemStack[] main = ((List<?>) Objects.requireNonNull(config.getList("inventory"))).toArray(new ItemStack[0]);
+        ItemStack[] armor = ((List<?>) Objects.requireNonNull(config.getList("armor"))).toArray(new ItemStack[0]);
+        ItemStack offhand = config.getItemStack("offhand", new ItemStack(Material.AIR));
 
         player.getInventory().setContents(main);
         player.getInventory().setArmorContents(armor);
@@ -293,10 +331,10 @@ public class OfflinePlayerManager implements Listener {
         if (!playerFile.exists()) return null;
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(playerFile);
-        ItemStack[] main = ((List<ItemStack>) config.getList("inventory")).toArray(new ItemStack[0]);
-        ItemStack[] armor = ((List<ItemStack>) config.getList("armor")).toArray(new ItemStack[0]);
-        ItemStack offhand = config.getItemStack("offhand");
-        ItemStack head = config.getItemStack("head");
+        ItemStack[] main = ((List<?>) Objects.requireNonNull(config.getList("inventory"))).toArray(new ItemStack[0]);
+        ItemStack[] armor = ((List<?>) Objects.requireNonNull(config.getList("armor"))).toArray(new ItemStack[0]);
+        ItemStack offhand = config.getItemStack("offhand", new ItemStack(Material.AIR));
+        ItemStack head = config.getItemStack("head", new ItemStack(Material.PLAYER_HEAD));
 
         return new OfflineInventory(main, armor, offhand, head);
     }

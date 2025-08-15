@@ -30,16 +30,16 @@ public class PylonRetrievalManager {
      * 모든 파일런을 제거하고 아이템을 지급하며, 쿨타임 및 재설치 타이머를 적용합니다.
      * @param leader 가문 대표
      */
-    public void executePylonRetrieval(Player leader) {
+    public boolean executePylonRetrieval(Player leader) {
         Clan clan = plugin.getClanManager().getClanByPlayer(leader.getUniqueId());
         if (clan == null || !clan.getLeader().equals(leader.getUniqueId())) {
             leader.sendMessage(PREFIX + "§c파일런 회수는 가문 대표만 가능합니다.");
-            return;
+            return false;
         }
 
         if (clan.getPylonLocations().isEmpty()) {
             leader.sendMessage(PREFIX + "§c회수할 파일런이 없습니다.");
-            return;
+            return false;
         }
 
         long cooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getPylonRetrievalCooldownHours());
@@ -49,7 +49,7 @@ public class PylonRetrievalManager {
                     TimeUnit.MILLISECONDS.toHours(remainingMillis),
                     TimeUnit.MILLISECONDS.toMinutes(remainingMillis) % 60);
             leader.sendMessage(PREFIX + "§c다음 회수까지 " + remainingTime + " 남았습니다.");
-            return;
+            return false;
         }
 
         List<ItemStack> pylonItems = new ArrayList<>();
@@ -82,6 +82,7 @@ public class PylonRetrievalManager {
         InventoryUtils.giveOrDropItems(leader, pylonItems.toArray(new ItemStack[0]));
         leader.sendMessage(PREFIX + "§a모든 파일런(" + pylonItems.size() + "개)을 회수했습니다.");
         plugin.getPylonManager().getReinstallManager().startReinstallTimer(leader);
+        return true;
     }
 
     /**
@@ -103,8 +104,8 @@ public class PylonRetrievalManager {
 
         // 주 파일런은 개별 회수 불가, 보조 파일런만 개별 회수 가능
         if (pylonType == PylonType.MAIN_CORE) {
-            player.sendMessage(PREFIX + "§c주 파일런은 개별적으로 회수할 수 없습니다. '/df clan retrieve' 명령어를 사용하세요.");
-            return false;
+            // 주 파일런을 파괴하면 모든 파일런을 회수하는 로직을 실행합니다.
+            return executePylonRetrieval(player);
         }
 
         if (pylonType == PylonType.AUXILIARY) {

@@ -45,7 +45,6 @@ public class PylonManager {
         this.structureManager = new PylonStructureManager(this.areaManager);
         this.scrollManager = new ReturnScrollManager(plugin);
 
-        loadExistingPylons();
         startAreaEffectTask();
         plugin.getLogger().info("PylonManager loaded.");
     }
@@ -110,7 +109,7 @@ public class PylonManager {
      * 플러그인 활성화 시, 저장된 모든 파일런 정보를 불러와 Area Manager에 등록합니다.
      * 이를 통해 서버 재시작 후에도 파일런 보호 및 효과가 즉시 적용됩니다.
      */
-    private void loadExistingPylons() {
+    public void loadExistingPylons() {
         plugin.getLogger().info("Loading existing pylons...");
         int count = 0;
         for (Clan clan : plugin.getClanManager().getAllClans()) {

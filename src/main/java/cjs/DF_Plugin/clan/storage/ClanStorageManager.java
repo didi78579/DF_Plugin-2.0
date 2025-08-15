@@ -47,10 +47,14 @@ public class ClanStorageManager {
         if (clanFiles == null) return clans;
 
         for (File clanFile : clanFiles) {
-            FileConfiguration clanConfig = YamlConfiguration.loadConfiguration(clanFile);
-            String clanName = clanFile.getName().replace(".yml", "");
-            Clan clan = new Clan(clanName, clanConfig);
-            clans.put(clanName.toLowerCase(), clan);
+            try {
+                FileConfiguration clanConfig = YamlConfiguration.loadConfiguration(clanFile);
+                String clanName = clanFile.getName().replace(".yml", "");
+                Clan clan = new Clan(clanName, clanConfig);
+                clans.put(clanName.toLowerCase(), clan);
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "손상되었거나 잘못된 클랜 파일을 불러오는데 실패했습니다: " + clanFile.getName(), e);
+            }
         }
         return clans;
     }
