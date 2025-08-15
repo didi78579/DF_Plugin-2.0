@@ -63,7 +63,6 @@ public class DFAdminCommand implements CommandExecutor {
             case "cancelstat" -> handleCancelStatCommand(sender);
             case "controlender" -> handleControlEnderCommand(sender, subArgs);
             case "unban" -> handleUnbanCommand(sender, subArgs);
-            case "magicstone" -> handleMagicStoneCommand(sender, subArgs);
             default -> sender.sendMessage("§c알 수 없는 명령어입니다.");
         }
 
@@ -315,29 +314,5 @@ public class DFAdminCommand implements CommandExecutor {
 
         plugin.getPlayerDeathManager().resurrectPlayer(target.getUniqueId());
         sender.sendMessage("§a플레이어 '" + playerName + "'의 사망 밴을 해제했습니다. 이제 접속할 수 있습니다.");
-    }
-
-    private void handleMagicStoneCommand(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있는 명령어입니다.");
-            return;
-        }
-
-        int amount = 1;
-        if (args.length > 0) {
-            try {
-                amount = Integer.parseInt(args[0]);
-                if (amount <= 0) {
-                    player.sendMessage("§c수량은 1 이상이어야 합니다.");
-                    return;
-                }
-            } catch (NumberFormatException e) {
-                player.sendMessage("§c올바른 숫자를 입력해주세요.");
-                return;
-            }
-        }
-
-        player.getInventory().addItem(MagicStone.createMagicStone(amount));
-        player.sendMessage("§a마석을 " + amount + "개 지급받았습니다.");
     }
 }
