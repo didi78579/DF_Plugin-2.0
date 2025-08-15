@@ -2,9 +2,8 @@ package cjs.DF_Plugin.upgrade;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.items.ItemNameManager;
-import cjs.DF_Plugin.settings.ConfigKeys;
 import cjs.DF_Plugin.items.UpgradeItems;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.profile.ProfileRegistry;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import org.bukkit.*;
@@ -14,7 +13,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.entity.Player;
 
 import java.util.*;
 
@@ -57,7 +55,7 @@ public class UpgradeManager {
 
     public void attemptUpgrade(Player player, ItemStack item) {
         // 1. 강화 대상 분석
-        IWeaponProfile profile = this.profileRegistry.getProfile(item.getType());
+        IUpgradeableProfile profile = this.profileRegistry.getProfile(item.getType());
         if (profile == null) {
             player.sendMessage("§c이 아이템은 강화할 수 없습니다.");
             return;
@@ -82,7 +80,7 @@ public class UpgradeManager {
         // 4. 강화 실행
         consumeStones(player, requiredStones); // 강화석 소모
         FileConfiguration config = plugin.getGameConfigManager().getConfig();
-        String path = ConfigKeys.UPGRADE_LEVEL_SETTINGS + currentLevel;
+        String path = "upgrade.level-settings." + currentLevel;
 
         if (!config.isConfigurationSection(path)) {
             player.sendMessage("§c다음 강화 레벨에 대한 설정이 없습니다. (레벨: " + currentLevel + ")");
@@ -110,7 +108,7 @@ public class UpgradeManager {
         if (roll < successChance) {
             // 성공
             int newLevel = currentLevel + 1;
-            setUpgradeLevel(item, profile, newLevel);
+            setUpgradeLevel(item, newLevel);
             player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.5f);
             // 10강 달성 시 전설 알림
             if (newLevel == MAX_UPGRADE_LEVEL) {
@@ -122,7 +120,7 @@ public class UpgradeManager {
         } else if (roll < successChance + failureChance + downgradeChance) { // This now corresponds to the destroyChance part of the roll
             // 등급 하락
             int newLevel = Math.max(0, currentLevel - 1);
-            setUpgradeLevel(item, profile, newLevel);
+            setUpgradeLevel(item, newLevel);
             player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 1.5f);
         } else {
             // 파괴
@@ -134,9 +132,15 @@ public class UpgradeManager {
         }
     }
 
-    public void setUpgradeLevel(ItemStack item, IWeaponProfile profile, int newLevel) {
+    public void setUpgradeLevel(ItemStack item, int newLevel) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
+
+        IUpgradeableProfile profile = profileRegistry.getProfile(item.getType());
+        if (profile == null) {
+            // 강화 불가능한 아이템에 대해선 로직을 실행하지 않음.
+            return;
+        }
 
         // 레벨에 따라 아이템 이름 처리 (전설의 접두사)
         // PDC에서 커스텀 이름과 색상을 가져옵니다.
@@ -191,14 +195,14 @@ public class UpgradeManager {
 
         // 2. 다음 레벨의 확률 정보 추가
         FileConfiguration config = plugin.getGameConfigManager().getConfig();
-        if (!config.getBoolean(ConfigKeys.UPGRADE_SHOW_CHANCE, true)) {
+        if (!config.getBoolean("upgrade.show-success-chance", true)) {
             // 설정이 꺼져있으면 아무것도 하지 않음
         } else if (newLevel >= MAX_UPGRADE_LEVEL) {
             // 아이템이 이미 최대 레벨에 도달한 경우
             lore.add(ChatColor.GOLD + "최대 강화 레벨에 도달했습니다!");
         } else {
             // 다음 강화 레벨에 대한 정보를 yml에서 찾습니다.
-            String path = ConfigKeys.UPGRADE_LEVEL_SETTINGS + newLevel;
+            String path = "upgrade.level-settings." + newLevel;
             if (config.isConfigurationSection(path)) {
                 double success = config.getDouble(path + ".success", 0.0) * 100;
                 double failure = config.getDouble(path + ".failure", 0.0) * 100;
@@ -217,6 +221,11 @@ public class UpgradeManager {
         // 4. 특수 능력 표시 처리
         ISpecialAbility ability = profile.getSpecialAbility();
         if (ability != null) {
+            // 아이템 프로필에 능력이 있다면, 레벨과 관계없이 항상 아이템에 능력 정보를 저장합니다.
+            // 이렇게 해야 SpecialAbilityManager가 능력을 식별하고, 각 능력의 레벨별 로직이 정상 작동합니다.
+            meta.getPersistentDataContainer().set(SPECIAL_ABILITY_KEY, PersistentDataType.STRING, ability.getInternalName());
+
+            // 특수 능력 설명은 10강에서 활성화되어 표시됩니다. (UI/UX)
             if (newLevel >= MAX_UPGRADE_LEVEL) {
                 lore.add(""); // 간격을 위한 빈 줄
                 String abilityName = ChatColor.stripColor(ability.getDisplayName());
@@ -226,14 +235,24 @@ public class UpgradeManager {
                 if (!meta.getPersistentDataContainer().has(ITEM_UUID_KEY, PersistentDataType.STRING)) {
                     meta.getPersistentDataContainer().set(ITEM_UUID_KEY, PersistentDataType.STRING, UUID.randomUUID().toString());
                 }
-                meta.getPersistentDataContainer().set(SPECIAL_ABILITY_KEY, PersistentDataType.STRING, ability.getInternalName());
-            } else {
-                meta.getPersistentDataContainer().remove(SPECIAL_ABILITY_KEY);
             }
         }
 
         // 3. 스탯 속성 적용
         profile.applyAttributes(item, meta, newLevel, lore);
+
+        // 10강 트라이던트 특별 처리
+        if (item.getType() == Material.TRIDENT && newLevel >= MAX_UPGRADE_LEVEL) {
+            // 충성과 집전이 있다면 제거
+            if (meta.hasEnchant(Enchantment.LOYALTY)) {
+                meta.removeEnchant(Enchantment.LOYALTY);
+            }
+            if (meta.hasEnchant(Enchantment.CHANNELING)) {
+                meta.removeEnchant(Enchantment.CHANNELING);
+            }
+            // 급류 3 부여 (기존에 없거나 레벨이 낮을 경우 덮어쓰기)
+            meta.addEnchant(Enchantment.RIPTIDE, 3, true);
+        }
 
         // 5. 최종 적용
         meta.setLore(lore);
@@ -337,10 +356,10 @@ public class UpgradeManager {
      * @return 수정된 아이템
      */
     public ItemStack setItemLevel(ItemStack item, int level, Enchantment enchantment, int enchantLevel) {
-        IWeaponProfile profile = profileRegistry.getProfile(item.getType());
+        IUpgradeableProfile profile = profileRegistry.getProfile(item.getType());
         if (profile != null) {
             // 프로필이 존재하면, 레벨 설정 로직을 통해 이름, 로어, 기본 속성을 적용합니다.
-            setUpgradeLevel(item, profile, level);
+            setUpgradeLevel(item, level);
         }
 
         // 프로필 존재 여부와 관계없이 요청된 특정 인챈트를 추가로 부여합니다.

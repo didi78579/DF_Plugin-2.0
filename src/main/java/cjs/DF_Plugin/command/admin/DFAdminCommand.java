@@ -2,11 +2,15 @@ package cjs.DF_Plugin.command.admin;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.command.admin.editor.SettingsEditor;
+import cjs.DF_Plugin.items.MasterCompass;
 import cjs.DF_Plugin.enchant.MagicStone;
+import cjs.DF_Plugin.items.UpgradeItems;
+import cjs.DF_Plugin.pylon.item.PylonItemFactory;
+import cjs.DF_Plugin.player.stats.PlayerEvalGuiManager;
 import cjs.DF_Plugin.player.stats.StatType;
 import cjs.DF_Plugin.player.stats.StatsManager;
 import cjs.DF_Plugin.settings.GameConfigManager;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.settings.GameModeManager;
 import cjs.DF_Plugin.upgrade.UpgradeManager;
 import org.bukkit.Bukkit;
@@ -30,6 +34,7 @@ public class DFAdminCommand implements CommandExecutor {
     private final SettingsEditor settingsEditor;
     private final SetSettingsCommand setCommand;
     private final StatsManager statsManager;
+    private final PlayerEvalGuiManager playerEvalGuiManager;
 
     public DFAdminCommand(DF_Main plugin) {
         this.plugin = plugin;
@@ -38,13 +43,14 @@ public class DFAdminCommand implements CommandExecutor {
         this.settingsEditor = new SettingsEditor(plugin);
         this.setCommand = new SetSettingsCommand(plugin);
         this.statsManager = plugin.getStatsManager();
+        this.playerEvalGuiManager = plugin.getPlayerEvalGuiManager();
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 0) {
             sender.sendMessage("§c사용법: /df admin <subcommand>");
-            sender.sendMessage("§c사용 가능한 명령어: gamemode, settings, set, weapon, clan, register, controlender, unban, magicstone, game");
+            sender.sendMessage("§c사용 가능한 명령어: gamemode, settings, set, clan, register, controlender, unban, game, getitem, getweapon, statview, supplydrop");
 
             return true;
         }
@@ -54,7 +60,6 @@ public class DFAdminCommand implements CommandExecutor {
         switch (subCommand) {
             case "gamemode" -> handleGameModeCommand(sender, subArgs);
             case "settings" -> handleSettingsCommand(sender, subArgs);
-            case "weapon" -> handleWeaponCommand(sender, subArgs);
             case "clan" -> handleAdminClanCommand(sender, subArgs);
             case "set" -> setCommand.handle(sender, subArgs);
             case "register" -> handleRegisterCommand(sender, subArgs);
@@ -64,6 +69,10 @@ public class DFAdminCommand implements CommandExecutor {
             case "controlender" -> handleControlEnderCommand(sender, subArgs);
             case "unban" -> handleUnbanCommand(sender, subArgs);
             case "game" -> handleGameCommand(sender, subArgs);
+            case "getitem" -> handleGetItemCommand(sender, subArgs);
+            case "getweapon" -> handleGetWeaponCommand(sender, subArgs);
+            case "statview" -> handleStatViewCommand(sender, subArgs);
+            case "supplydrop" -> handleAdminSupplyDropCommand(sender, subArgs);
             default -> sender.sendMessage("§c알 수 없는 명령어입니다.");
         }
 
@@ -197,7 +206,7 @@ public class DFAdminCommand implements CommandExecutor {
         }
 
         if (args.length < 1) {
-            sender.sendMessage("§c사용법: /df admin controlender <open|openafter>");
+            sender.sendMessage("§c사용법: /df admin controlender <open|openafter|close>");
             return;
         }
 
@@ -224,40 +233,56 @@ public class DFAdminCommand implements CommandExecutor {
                     sender.sendMessage("§c시간은 숫자로 입력해야 합니다.");
                 }
             }
-            default -> sender.sendMessage("§c알 수 없는 명령어입니다. 사용법: /df admin controlender <open|openafter>");
+            case "close" -> {
+                plugin.getEndEventManager().forceCloseEnd();
+                sender.sendMessage("§a엔드를 즉시 닫고 초기화했습니다.");
+            }
+            default -> sender.sendMessage("§c알 수 없는 명령어입니다. 사용법: /df admin controlender <open|openafter|close>");
         }
     }
 
-    private void handleWeaponCommand(CommandSender sender, String[] args) {
+    private void handleGetWeaponCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
             return;
         }
-        if (args.length < 1) {
-            player.sendMessage("§c사용법: /df admin weapon <아이템코드> [레벨]");
+        if (!player.hasPermission("df.admin.getitem")) {
+            player.sendMessage("§c이 명령어를 사용할 권한이 없습니다.");
             return;
         }
-        try {
-            Material material = Material.matchMaterial(args[0].toUpperCase());
-            if (material == null) {
-                player.sendMessage("§c알 수 없는 아이템 코드입니다.");
+        if (args.length < 1) {
+            player.sendMessage("§c사용법: /df admin getweapon <아이템코드> [레벨]");
+            return;
+        }
+
+        Material material = Material.matchMaterial(args[0].toUpperCase());
+        if (material == null) {
+            player.sendMessage("§c알 수 없는 아이템 코드입니다: " + args[0]);
+            return;
+        }
+
+        UpgradeManager upgradeManager = plugin.getUpgradeManager();
+        IUpgradeableProfile profile = upgradeManager.getProfileRegistry().getProfile(material);
+
+        if (profile == null) {
+            player.sendMessage("§c" + material.name() + " 아이템은 강화할 수 없습니다.");
+            return;
+        }
+
+        int level = 0;
+        if (args.length > 1) {
+            try {
+                level = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                player.sendMessage("§c레벨은 숫자여야 합니다.");
                 return;
             }
-            int level = args.length > 1 ? Integer.parseInt(args[1]) : 0;
-            ItemStack item = new ItemStack(material);
-
-            // 아이템에 레벨을 설정하고 로어를 업데이트합니다.
-            UpgradeManager upgradeManager = plugin.getUpgradeManager();
-            IWeaponProfile profile = upgradeManager.getProfileRegistry().getProfile(material);
-            if (profile != null) {
-                upgradeManager.setUpgradeLevel(item, profile, level);
-            }
-
-            player.getInventory().addItem(item);
-            player.sendMessage("§a" + material.name() + " (+" + level + ") 아이템을 지급받았습니다.");
-        } catch (Exception e) {
-            player.sendMessage("§c명령어 처리 중 오류가 발생했습니다.");
         }
+
+        ItemStack itemToGive = new ItemStack(material);
+        upgradeManager.setUpgradeLevel(itemToGive, level);
+        player.getInventory().addItem(itemToGive);
+        player.sendMessage("§a" + material.name() + " (+" + level + ") 아이템을 지급받았습니다.");
     }
 
     private void handleAdminClanCommand(CommandSender sender, String[] args) {
@@ -340,5 +365,102 @@ public class DFAdminCommand implements CommandExecutor {
             }
             default -> sender.sendMessage("§c알 수 없는 명령어입니다. 사용법: /df admin game <start|stop>");
         }
+    }
+
+    private void handleGetItemCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        if (!player.hasPermission("df.admin.getitem")) {
+            player.sendMessage("§c이 명령어를 사용할 권한이 없습니다.");
+            return;
+        }
+        if (args.length < 1) {
+            player.sendMessage("§c사용법: /df admin getitem <아이템이름> [개수]");
+            player.sendMessage("§c사용 가능: main_core, aux_core, master_compass, upgrade_stone, magic_stone, return_scroll");
+            return;
+        }
+
+        String itemName = args[0].toLowerCase();
+        int amount = 1;
+        if (args.length > 1) {
+            try {
+                amount = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                player.sendMessage("§c개수는 숫자여야 합니다.");
+                return;
+            }
+        }
+
+        ItemStack itemToGive;
+        switch (itemName) {
+            case "main_core":
+                itemToGive = PylonItemFactory.createMainCore();
+                itemToGive.setAmount(amount);
+                break;
+            case "aux_core":
+                itemToGive = PylonItemFactory.createAuxiliaryCore();
+                itemToGive.setAmount(amount);
+                break;
+            case "master_compass":
+                itemToGive = MasterCompass.createMasterCompass(amount);
+                break;
+            case "upgrade_stone":
+                itemToGive = UpgradeItems.createUpgradeStone(amount);
+                break;
+            case "magic_stone":
+                itemToGive = MagicStone.createMagicStone(amount);
+                break;
+            case "return_scroll":
+                itemToGive = PylonItemFactory.createReturnScroll();
+                itemToGive.setAmount(amount);
+                break;
+            default:
+                player.sendMessage("§c알 수 없는 아이템 이름입니다: " + itemName);
+                player.sendMessage("§c사용 가능: main_core, aux_core, master_compass, upgrade_stone, magic_stone, return_scroll");
+                return;
+        }
+
+        player.getInventory().addItem(itemToGive);
+        player.sendMessage("§a" + itemName + " " + amount + "개를 지급받았습니다.");
+    }
+
+    private void handleStatViewCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player admin)) {
+            sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        if (!admin.hasPermission("df.admin.statview")) {
+            admin.sendMessage("§c이 명령어를 사용할 권한이 없습니다.");
+            return;
+        }
+        if (args.length < 1) {
+            admin.sendMessage("§c사용법: /df admin statview <플레이어이름>");
+            return;
+        }
+
+        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        if (!target.hasPlayedBefore() && !target.isOnline()) {
+            admin.sendMessage("§c'" + args[0] + "' 플레이어는 이 서버에 접속한 기록이 없습니다.");
+            return;
+        }
+
+        playerEvalGuiManager.openEvalGui(admin, target);
+    }
+
+    private void handleAdminSupplyDropCommand(CommandSender sender, String[] adminSubArgs) {
+        if (adminSubArgs.length == 0 || !adminSubArgs[0].equalsIgnoreCase("start")) {
+            sender.sendMessage("§c사용법: /df admin supplydrop start");
+            return;
+        }
+
+        if (plugin.getSupplyDropManager().isEventActive()) {
+            sender.sendMessage("§c이미 보급 이벤트가 진행 중입니다.");
+            return;
+        }
+
+        plugin.getSupplyDropScheduler().startEventNow();
+        sender.sendMessage("§a보급 이벤트를 강제로 시작했습니다.");
     }
 }

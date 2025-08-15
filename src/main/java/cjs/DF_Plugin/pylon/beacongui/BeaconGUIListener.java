@@ -36,11 +36,14 @@ public class BeaconGUIListener implements Listener {
         Block clickedBlock = event.getClickedBlock();
         if (clickedBlock == null || clickedBlock.getType() != Material.BEACON) return;
 
+        event.setCancelled(true);
+
         Player player = event.getPlayer();
         Clan playerClan = plugin.getClanManager().getClanByPlayer(player.getUniqueId());
         if (playerClan == null) return;
 
         String clickedLocationStr = PluginUtils.serializeLocation(clickedBlock.getLocation());
+        // 자신의 가문 파일런을 클릭했을 때만 커스텀 GUI를 엽니다.
         if (playerClan.getPylonLocations().contains(clickedLocationStr)) {
             event.setCancelled(true);
             guiManager.openMainMenu(player);

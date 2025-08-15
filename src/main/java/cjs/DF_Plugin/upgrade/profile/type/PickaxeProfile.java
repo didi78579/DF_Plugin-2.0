@@ -3,7 +3,7 @@ package cjs.DF_Plugin.upgrade.profile.type;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.upgrade.UpgradeManager;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.GrapplingHookAbility;
 import org.bukkit.Material;
@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class PickaxeProfile implements IWeaponProfile {
+public class PickaxeProfile implements IUpgradeableProfile {
     @Override
     public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
         // 1. 기존 공격 관련 속성을 초기화합니다.

@@ -24,7 +24,7 @@ public class PylonReinstallManager {
     }
 
     public void startReinstallTimer(Player player) {
-        int durationHours = plugin.getGameConfigManager().getPylonReinstallDurationHours();
+        long durationHours = plugin.getGameConfigManager().getConfig().getInt("pylon.retrieval.reinstall-duration-hours", 2);
         long deadline = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(durationHours);
         reinstallDeadlines.put(player.getUniqueId(), deadline);
         player.sendMessage(PREFIX + "§c파일런을 " + durationHours + "시간 내에 다시 설치해야 합니다!");

@@ -52,12 +52,23 @@ public class ClanManager {
         clans.putAll(loadedClans);
         clans.values().forEach(clan -> {
             clan.getMembers().forEach(memberId -> playerClanMap.put(memberId, clan));
+            pylonStorages.put(clan.getName(), storageManager.loadPylonStorage(clan));
             giftBoxInventories.put(clan.getName(), storageManager.loadGiftBox(clan));
         });
         plugin.getLogger().info("ClanManager loaded with " + clans.size() + " clans.");
     }
 
     public Clan createClan(String name, Player leader, ChatColor color) {
+        if (isNameTaken(name)) {
+            leader.sendMessage(PluginUtils.colorize("&c[클랜] &f이미 사용 중인 가문 이름입니다."));
+            return null;
+        }
+
+        if (isColorTaken(color)) {
+            leader.sendMessage(PluginUtils.colorize("&c[클랜] &f이미 다른 가문이 사용 중인 색상입니다."));
+            return null;
+        }
+
         Clan clan = new Clan(name, leader.getUniqueId(), color);
         clan.setLastGiftBoxTime(System.currentTimeMillis()); // 선물상자 타이머 시작
         clans.put(name.toLowerCase(), clan);
@@ -68,7 +79,15 @@ public class ClanManager {
 
     public void disbandClan(Clan clan) {
         clan.broadcastMessage(PluginUtils.colorize("&a[클랜] &f클랜이 리더에 의해 해체되었습니다."));
-        // Make a copy to avoid ConcurrentModificationException if playerClanMap is modified elsewhere
+        deleteClan(clan);
+    }
+
+    private void deleteClan(Clan clan) {
+        // This method centralizes the logic for removing a clan from the server.
+        // It handles removing members from the map, deleting storage files, and cleaning up teams.
+
+        // 1. Remove all members from the player-clan map and update their tags/registry.
+        // A copy is used to prevent ConcurrentModificationException.
         Set<UUID> members = new HashSet<>(clan.getMembers());
         members.forEach(memberId -> {
             playerClanMap.remove(memberId);
@@ -78,9 +97,20 @@ public class ClanManager {
                 playerTagManager.removePlayerTag(player);
             }
         });
+
+        // 2. Remove the clan from the main cache.
         clans.remove(clan.getName().toLowerCase());
+
+        // 3. Delete the clan's data files (clan.yml, storage.yml, giftbox.yml).
         storageManager.deleteClan(clan.getName());
+
+        // 4. Remove the clan's scoreboard team.
         playerTagManager.cleanupClanTeam(clan);
+
+        // 5. Clean up in-memory inventories.
+        pylonStorages.remove(clan.getName());
+        giftBoxInventories.remove(clan.getName());
+        giftBoxViewers.remove(clan.getName());
     }
 
     public void absorbClan(Clan attacker, Clan defender) {
@@ -119,9 +149,7 @@ public class ClanManager {
         storageManager.saveClan(attacker);
 
         // Remove the defeated clan from the system
-        clans.remove(defender.getName().toLowerCase());
-        storageManager.deleteClan(defender.getName());
-        playerTagManager.cleanupClanTeam(defender);
+        deleteClan(defender);
     }
 
     public void addPlayerToClan(Player player, Clan clan) {
@@ -144,12 +172,29 @@ public class ClanManager {
     }
 
     public void removePlayerFromClan(Player player, Clan clan) {
-        clan.removeMember(player.getUniqueId());
-        playerClanMap.remove(player.getUniqueId());
-        // 리더가 나갔을 경우 처리 (예: 다른 멤버에게 리더 위임) 로직 추가 필요
-        storageManager.saveClan(clan);
+        UUID memberUUID = player.getUniqueId();
+        boolean wasLeader = clan.getLeader().equals(memberUUID);
+
+        clan.removeMember(memberUUID);
+        playerClanMap.remove(memberUUID);
         playerTagManager.removePlayerTag(player);
-        plugin.getPlayerRegistryManager().updatePlayerClan(player.getUniqueId(), null);
+        plugin.getPlayerRegistryManager().updatePlayerClan(memberUUID, null);
+
+        // 가문원이 한 명도 남지 않으면 가문을 해체합니다.
+        if (clan.getMembers().isEmpty()) {
+            Bukkit.broadcastMessage(PluginUtils.colorize("&b[가문] &f최후의 가문원 " + player.getName() + "님이 떠나, " + clan.getFormattedName() + "&f 가문이 해체되었습니다."));
+            deleteClan(clan);
+            return;
+        }
+
+        // 가문원이 남아있지만, 떠난 사람이 리더였다면 새로운 리더를 임명합니다.
+        if (wasLeader) {
+            clan.setLeader(clan.getMembers().iterator().next());
+            clan.broadcastMessage("§e" + player.getName() + "님이 가문을 떠나, " + Bukkit.getOfflinePlayer(clan.getLeader()).getName() + "님이 새로운 대표가 되었습니다.");
+        }
+
+        // 변경된 가문 정보를 저장합니다.
+        storageManager.saveClan(clan);
     }
 
     public Clan getClanByName(String name) { return clans.get(name.toLowerCase()); }
@@ -297,6 +342,19 @@ public class ClanManager {
         );
 
         player.openInventory(storage);
+    }
+
+    /**
+     * 특정 클랜의 파일런 창고 인벤토리를 가져옵니다.
+     * 창고가 메모리에 없으면 스토리지에서 불러옵니다.
+     * @param clan 창고를 가져올 클랜
+     * @return 클랜의 파일런 창고 인벤토리, 클랜이 null이면 null
+     */
+    public Inventory getPylonStorage(Clan clan) {
+        if (clan == null) return null;
+        return pylonStorages.computeIfAbsent(clan.getName(), clanName ->
+                storageManager.loadPylonStorage(clan)
+        );
     }
 
     public Map<String, Inventory> getPylonStorages() {

@@ -33,7 +33,7 @@ public class GiftBoxRefillTask extends BukkitRunnable {
 
     @Override
     public void run() {
-        long giftCooldownMillis = TimeUnit.HOURS.toMillis(configManager.getPylonGiftboxCooldownHours());
+        long giftCooldownMillis = TimeUnit.HOURS.toMillis(configManager.getConfig().getInt("pylon.giftbox.cooldown-hours", 4));
 
         for (Clan clan : clanManager.getAllClans()) {
             long timeSinceLastGift = System.currentTimeMillis() - clan.getLastGiftBoxTime();
@@ -44,8 +44,8 @@ public class GiftBoxRefillTask extends BukkitRunnable {
                 giftBox.clear();
 
                 // 최소/최대 세트 수를 기반으로 총 아이템 개수의 범위를 설정합니다.
-                int minTotalAmount = configManager.getPylonGiftboxMinSets() * 64;
-                int maxTotalAmount = configManager.getPylonGiftboxMaxSets() * 64;
+                int minTotalAmount = configManager.getConfig().getInt("pylon.giftbox.min-reward-sets", 4) * 64;
+                int maxTotalAmount = configManager.getConfig().getInt("pylon.giftbox.max-reward-sets", 8) * 64;
                 int totalAmount = ThreadLocalRandom.current().nextInt(minTotalAmount, maxTotalAmount + 1);
 
                 // 선물상자의 비어있는 모든 슬롯을 가져와 무작위로 섞습니다.
@@ -72,7 +72,7 @@ public class GiftBoxRefillTask extends BukkitRunnable {
                     amountLeft -= stackSize;
                 }
                 clan.setLastGiftBoxTime(System.currentTimeMillis());
-                clan.broadcastMessage("§d[선물상자] §e§l짜잔! §b가문 선물상자에 §d따끈따끈한 §e무료 나눔§b이 도착했어요! §f(파일런에서 확인)");
+                clan.broadcastMessage("§d[선물상자] §b가문 선물상자에 새로운 보급품이 도착했습니다. §f(파일런에서 확인)");
             }
         }
     }

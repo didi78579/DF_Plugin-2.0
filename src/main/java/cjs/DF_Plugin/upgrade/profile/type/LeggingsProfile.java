@@ -1,21 +1,27 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.SuperJumpAbility;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.inventory.EquipmentSlotGroup;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.List;
 import java.util.UUID;
 
-public class LeggingsProfile implements IWeaponProfile {
+public class LeggingsProfile implements IUpgradeableProfile {
+
+    private static final String ATTRIBUTE_NAME = "upgrade.health";
+
+
     @Override
-    public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
-        final String ATTRIBUTE_NAME = "upgrade.health";
+    public void applyAttributes(ItemStack item, ItemMeta meta, int level, List<String> lore) {
+
 
         // 1. 아이템의 모든 관련 속성을 초기화합니다.
         meta.removeAttributeModifier(Attribute.GENERIC_ARMOR);
@@ -26,9 +32,8 @@ public class LeggingsProfile implements IWeaponProfile {
         // 2. 아이템의 기본 방어 관련 속성들을 다시 적용합니다.
         applyBaseArmorAttributes(item.getType(), meta);
 
-        // 3. 새로운 강화 속성(체력)을 계산하고 적용합니다.
-        // 강화 레벨당 체력 2 증가 (과거 코드 로직)
-        double totalValue = level * 2.0;
+        double valuePerLevel = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.generic-bonuses.leggings.health-per-level", 0.0);
+        double totalValue = valuePerLevel * level;
         if (totalValue > 0) {
             AttributeModifier mod = new AttributeModifier(UUID.randomUUID(), ATTRIBUTE_NAME, totalValue, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlotGroup.LEGS);
             meta.addAttributeModifier(Attribute.GENERIC_MAX_HEALTH, mod);
@@ -40,8 +45,8 @@ public class LeggingsProfile implements IWeaponProfile {
 
         switch (material) {
             case LEATHER_LEGGINGS -> armor = 2;
-            case GOLDEN_LEGGINGS -> armor = 3;
             case CHAINMAIL_LEGGINGS -> armor = 4;
+            case GOLDEN_LEGGINGS -> armor = 3;
             case IRON_LEGGINGS -> armor = 5;
             case DIAMOND_LEGGINGS -> { armor = 6; toughness = 2; }
             case NETHERITE_LEGGINGS -> { armor = 6; toughness = 3; knockbackResistance = 0.1; }

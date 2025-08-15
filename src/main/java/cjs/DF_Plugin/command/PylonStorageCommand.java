@@ -2,7 +2,6 @@ package cjs.DF_Plugin.command;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
-import cjs.DF_Plugin.clan.ClanManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -11,10 +10,10 @@ import org.jetbrains.annotations.NotNull;
 
 public class PylonStorageCommand implements CommandExecutor {
 
-    private final ClanManager clanManager;
+    private final DF_Main plugin;
 
     public PylonStorageCommand(DF_Main plugin) {
-        this.clanManager = plugin.getClanManager();
+        this.plugin = plugin;
     }
 
     @Override
@@ -24,13 +23,14 @@ public class PylonStorageCommand implements CommandExecutor {
             return true;
         }
 
-        Clan clan = clanManager.getClanByPlayer(player.getUniqueId());
+        Clan clan = plugin.getClanManager().getClanByPlayer(player.getUniqueId());
         if (clan == null) {
             player.sendMessage("§c당신은 가문에 소속되어 있지 않습니다.");
             return true;
         }
 
-        clanManager.openPylonStorage(player);
+        // GUI에서 창고를 여는 것과 동일한 메소드를 호출하여 일관성을 보장합니다.
+        plugin.getClanManager().openPylonStorage(player);
         return true;
     }
 }

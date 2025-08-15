@@ -30,13 +30,23 @@ public class StatsManager {
 
     public StatsManager(DF_Main plugin) {
         this.plugin = plugin;
-        this.statsFile = new File(plugin.getDataFolder(), "player_stats.yml");
+        File playersFolder = new File(plugin.getDataFolder(), "players");
+        if (!playersFolder.exists()) {
+            playersFolder.mkdirs();
+        }
+        this.statsFile = new File(playersFolder, "player_stats.yml");
         loadStats();
     }
 
     public void loadStats() {
         if (!statsFile.exists()) {
-            plugin.saveResource("player_stats.yml", false);
+            try {
+                statsFile.createNewFile();
+                plugin.getLogger().info("Created a new player_stats.yml file.");
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "Could not create player_stats.yml!", e);
+                return; // 파일 생성 실패 시, 더 진행하지 않음
+            }
         }
         statsConfig = YamlConfiguration.loadConfiguration(statsFile);
         statsCache.clear();

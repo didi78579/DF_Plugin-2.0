@@ -5,11 +5,16 @@ import cjs.DF_Plugin.enchant.MagicStone;
 import cjs.DF_Plugin.items.UpgradeItems;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -22,22 +27,40 @@ public class EndEventManager {
     private boolean isEndOpen;
     private long scheduledOpenTime = -1;
     private BukkitTask openTask;
-    private BukkitTask collapseTask;
+    private BukkitTask collapseUpdateTask;
+    private BossBar collapseBossBar;
+    private long collapseEndTime = -1;
 
     private static final String CONFIG_PATH_IS_OPEN = "end-event.is-open";
     private static final String CONFIG_PATH_SCHEDULED_TIME = "end-event.scheduled-open-time";
     private static final String CONFIG_PATH_COLLAPSE_TIME = "end-event.collapse-delay-minutes";
+    private static final String CONFIG_PATH_COLLAPSE_END_TIME = "end-event.collapse-end-time";
 
     public EndEventManager(DF_Main plugin) {
         this.plugin = plugin;
         loadState();
     }
 
+    /**
+     * 서버 시작 시 config.yml에서 엔드 이벤트의 상태(개방, 예약, 붕괴)를 불러옵니다.
+     */
     public void loadState() {
         this.isEndOpen = plugin.getGameConfigManager().getConfig().getBoolean(CONFIG_PATH_IS_OPEN, false);
         this.scheduledOpenTime = plugin.getGameConfigManager().getConfig().getLong(CONFIG_PATH_SCHEDULED_TIME, -1);
+        this.collapseEndTime = plugin.getGameConfigManager().getConfig().getLong(CONFIG_PATH_COLLAPSE_END_TIME, -1);
 
-        if (scheduledOpenTime != -1) {
+        if (collapseEndTime != -1) {
+            long remainingMillis = collapseEndTime - System.currentTimeMillis();
+            if (remainingMillis <= 0) {
+                // 서버가 꺼져있는 동안 붕괴 시간이 지났으므로, 즉시 닫습니다.
+                closeAndResetEnd();
+            } else {
+                // 붕괴 카운트다운을 다시 시작합니다.
+                long totalDurationMinutes = plugin.getGameConfigManager().getConfig().getLong(CONFIG_PATH_COLLAPSE_TIME, 10);
+                Bukkit.broadcastMessage("§5[엔드 이벤트] §c엔드 월드 붕괴가 재개됩니다! 서둘러 탈출하세요!");
+                startCollapseCountdown(totalDurationMinutes);
+            }
+        } else if (scheduledOpenTime != -1) {
             long delayMillis = scheduledOpenTime - System.currentTimeMillis();
             if (delayMillis <= 0) {
                 // 서버가 꺼져있는 동안 열릴 시간이었으므로, 지금 바로 엽니다.
@@ -52,11 +75,16 @@ public class EndEventManager {
     private void saveState() {
         plugin.getGameConfigManager().getConfig().set(CONFIG_PATH_IS_OPEN, isEndOpen);
         plugin.getGameConfigManager().getConfig().set(CONFIG_PATH_SCHEDULED_TIME, scheduledOpenTime);
+        plugin.getGameConfigManager().getConfig().set(CONFIG_PATH_COLLAPSE_END_TIME, collapseEndTime);
         plugin.getGameConfigManager().save();
     }
 
     public void openEnd(boolean broadcast) {
         if (isEndOpen) return;
+
+        // 엔드를 열기 전에 항상 월드를 초기화하여 새로운 경험을 제공합니다.
+        plugin.getLogger().info("Resetting The End before opening...");
+        plugin.getWorldManager().resetWorld("world_the_end");
 
         if (openTask != null) {
             openTask.cancel();
@@ -69,6 +97,10 @@ public class EndEventManager {
 
         if (broadcast) {
             Bukkit.broadcastMessage("§5[엔드 이벤트] §d엔더 드래곤의 포효가 들려옵니다! 엔드 포탈이 활성화되었습니다!");
+            // 모든 플레이어에게 엔드 포탈 활성화 소리를 재생합니다.
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_SPAWN, 1.0f, 1.0f);
+            }
         }
         plugin.getLogger().info("The End has been opened.");
     }
@@ -95,6 +127,15 @@ public class EndEventManager {
         plugin.getLogger().info("The End is scheduled to open in " + minutes + " minutes.");
     }
 
+    /**
+     * 관리자 명령 등으로 엔드를 강제로 닫고 초기화합니다.
+     */
+    public void forceCloseEnd() {
+        // 붕괴 중이 아니더라도 관련 상태를 모두 초기화하기 위해 closeAndResetEnd를 호출합니다.
+        Bukkit.broadcastMessage("§5[엔드 이벤트] §4관리자에 의해 엔드 월드가 강제로 닫혔습니다.");
+        closeAndResetEnd();
+    }
+
     public boolean isEndOpen() {
         return isEndOpen;
     }
@@ -104,6 +145,11 @@ public class EndEventManager {
      */
     public void triggerDragonDefeatSequence() {
         if (!isEndOpen) return;
+
+        // 드래곤이 죽는 즉시 엔드를 닫아 더 이상의 진입을 막습니다.
+        // 붕괴 카운트다운은 계속 진행됩니다.
+        this.isEndOpen = false;
+        Bukkit.broadcastMessage("§5[엔드 이벤트] §c엔더 드래곤이 쓰러져 엔드 포탈이 닫혔습니다!");
 
         World endWorld = Bukkit.getWorld("world_the_end");
         if (endWorld != null) {
@@ -116,16 +162,59 @@ public class EndEventManager {
         long delayMinutes = plugin.getGameConfigManager().getConfig().getLong(CONFIG_PATH_COLLAPSE_TIME, 10);
         Bukkit.broadcastMessage("§5[엔드 이벤트] §c엔드 월드가 " + delayMinutes + "분 뒤 붕괴를 시작합니다! 서둘러 탈출하세요!");
 
-        if (collapseTask != null) {
-            collapseTask.cancel();
+        this.collapseEndTime = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(delayMinutes);
+        saveState();
+        startCollapseCountdown(delayMinutes);
+    }
+
+    /**
+     * 붕괴 카운트다운과 보스바 업데이트를 시작합니다.
+     * @param totalDurationMinutes 붕괴까지 총 소요 시간(분)
+     */
+    private void startCollapseCountdown(long totalDurationMinutes) {
+        if (collapseUpdateTask != null) {
+            collapseUpdateTask.cancel();
         }
-        collapseTask = Bukkit.getScheduler().runTaskLater(plugin, this::closeAndResetEnd, delayMinutes * 60 * 20L);
+        if (collapseBossBar != null) {
+            collapseBossBar.removeAll();
+        }
+
+        collapseBossBar = Bukkit.createBossBar("§c엔드 월드 붕괴까지...", BarColor.RED, BarStyle.SOLID);
+        collapseBossBar.setVisible(true);
+
+        World endWorld = Bukkit.getWorld("world_the_end");
+        if (endWorld != null) {
+            endWorld.getPlayers().forEach(collapseBossBar::addPlayer);
+        }
+
+        final long totalDurationMillis = TimeUnit.MINUTES.toMillis(totalDurationMinutes);
+
+        collapseUpdateTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                long remainingMillis = collapseEndTime - System.currentTimeMillis();
+
+                if (remainingMillis <= 0) {
+                    closeAndResetEnd();
+                    this.cancel();
+                    return;
+                }
+
+                double progress = (double) remainingMillis / totalDurationMillis;
+                collapseBossBar.setProgress(Math.max(0.0, Math.min(1.0, progress)));
+            }
+        }.runTaskTimer(plugin, 0L, 20L); // 1초마다 업데이트
     }
 
     private void closeAndResetEnd() {
-        if (collapseTask != null) {
-            collapseTask.cancel();
-            collapseTask = null;
+        if (collapseUpdateTask != null) {
+            collapseUpdateTask.cancel();
+            collapseUpdateTask = null;
+        }
+        if (collapseBossBar != null) {
+            collapseBossBar.removeAll();
+            collapseBossBar.setVisible(false);
+            collapseBossBar = null;
         }
 
         World endWorld = Bukkit.getWorld("world_the_end");
@@ -137,6 +226,7 @@ public class EndEventManager {
 
         this.isEndOpen = false;
         this.scheduledOpenTime = -1;
+        this.collapseEndTime = -1;
         saveState();
 
         Bukkit.broadcastMessage("§5[엔드 이벤트] §4엔드 월드가 붕괴하여 닫혔습니다.");
@@ -147,6 +237,30 @@ public class EndEventManager {
 
     public void teleportPlayerToSafety(Player player) {
         plugin.getWorldManager().teleportPlayerToSafety(player);
+    }
+
+    /**
+     * 현재 엔드 월드가 붕괴 중인지 확인합니다.
+     * @return 붕괴 중이면 true
+     */
+    public boolean isCollapsing() {
+        return this.collapseEndTime != -1;
+    }
+
+    /**
+     * 특정 플레이어를 붕괴 보스바에 추가합니다.
+     * @param player 추가할 플레이어
+     */
+    public void addPlayerToCollapseBar(Player player) {
+        if (collapseBossBar != null && isCollapsing()) {
+            collapseBossBar.addPlayer(player);
+        }
+    }
+
+    public void removePlayerFromCollapseBar(Player player) {
+        if (collapseBossBar != null) {
+            collapseBossBar.removePlayer(player);
+        }
     }
 
     /**

@@ -12,7 +12,6 @@ import cjs.DF_Plugin.pylon.beacongui.BeaconGUIManager;
 import cjs.DF_Plugin.pylon.beacongui.recon.ReconManager;
 import cjs.DF_Plugin.pylon.reinstall.PylonReinstallManager;
 import cjs.DF_Plugin.pylon.retrieval.PylonRetrievalManager;
-import cjs.DF_Plugin.pylon.storage.PylonStorageManager;
 import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Location;
 import java.util.Map;
@@ -28,9 +27,9 @@ public class PylonManager {
     private final PylonRetrievalManager retrievalManager;
     private final PylonReinstallManager reinstallManager;
     private final ReconManager reconManager;
-    private final PylonStorageManager storageManager;
     private final PylonStructureManager structureManager;
     private final ReturnScrollManager scrollManager;
+    private final PylonFeatureManager featureManager;
 
     public PylonManager(DF_Main plugin) {
         this.plugin = plugin;
@@ -41,9 +40,9 @@ public class PylonManager {
         this.retrievalManager = new PylonRetrievalManager(plugin);
         this.reinstallManager = new PylonReinstallManager(plugin);
         this.reconManager = new ReconManager(plugin);
-        this.storageManager = new PylonStorageManager(plugin);
         this.structureManager = new PylonStructureManager(this.areaManager);
         this.scrollManager = new ReturnScrollManager(plugin);
+        this.featureManager = new PylonFeatureManager(plugin);
 
         startAreaEffectTask();
         plugin.getLogger().info("PylonManager loaded.");
@@ -77,10 +76,6 @@ public class PylonManager {
         return reconManager;
     }
 
-    public PylonStorageManager getStorageManager() {
-        return storageManager;
-    }
-
     public PylonStructureManager getStructureManager() {
         return structureManager;
     }
@@ -88,6 +83,8 @@ public class PylonManager {
     public ReturnScrollManager getScrollManager() {
         return scrollManager;
     }
+
+    public PylonFeatureManager getFeatureManager() { return featureManager; }
 
     /**
      * 특정 가문의 모든 파일런 기반(철 블록)을 다시 설치하여 안정화시킵니다.

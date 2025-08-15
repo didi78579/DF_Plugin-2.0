@@ -6,7 +6,6 @@ import cjs.DF_Plugin.enchant.MagicStone;
 import cjs.DF_Plugin.items.ItemBuilder;
 import cjs.DF_Plugin.items.UpgradeItems;
 import cjs.DF_Plugin.pylon.item.PylonItemFactory;
-import cjs.DF_Plugin.settings.ConfigKeys;
 import cjs.DF_Plugin.util.InventoryUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -40,9 +39,9 @@ public class PylonShopManager {
         // 슬롯 0: 정찰용 폭죽 구매
         Clan clan = plugin.getClanManager().getClanByPlayer(player.getUniqueId());
         if (clan != null) {
-            long reconCooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getPylonReconCooldownHours());
+            long reconCooldownMillis = TimeUnit.HOURS.toMillis(config.getInt("pylon.recon-firework.cooldown-hours", 12));
             long timeSinceLastRecon = System.currentTimeMillis() - clan.getLastReconFireworkTime();
-            int reconCost = config.getInt(ConfigKeys.RECON_FIREWORK_COST, 50);
+            int reconCost = config.getInt("pylon.shop.recon-firework.cost-level", 50);
 
             ItemBuilder reconBuilder = new ItemBuilder(Material.FIREWORK_ROCKET)
                     .withName("§b정찰용 폭죽 구매")
@@ -60,23 +59,23 @@ public class PylonShopManager {
                         TimeUnit.MILLISECONDS.toMinutes(remainingMillis) % 60);
                 reconBuilder.addLoreLine("§c다음 구매까지: " + remainingTime);
             }
-            reconBuilder.withPDCString(SHOP_ITEM_KEY, ConfigKeys.SHOP_ID_RECON);
+            reconBuilder.withPDCString(SHOP_ITEM_KEY, "recon_firework");
             reconBuilder.withPDCInt(SHOP_COST_KEY, reconCost);
             gui.setItem(0, reconBuilder.build());
         }
 
         // 슬롯 2: 귀환 주문서
-        int scrollCostLevel = config.getInt(ConfigKeys.RETURN_SCROLL_COST, 30);
+        int scrollCostLevel = config.getInt("pylon.shop.return-scroll.cost-level", 30);
         gui.setItem(2, new ItemBuilder(PylonItemFactory.createReturnScroll())
                 .addLoreLine("")
                 .addLoreLine("§f가격: §a" + scrollCostLevel + " 레벨")
-                .withPDCString(SHOP_ITEM_KEY, ConfigKeys.SHOP_ID_RETURN_SCROLL)
+                .withPDCString(SHOP_ITEM_KEY, "return_scroll")
                 .withPDCInt(SHOP_COST_KEY, scrollCostLevel)
                 .build());
 
         // 슬롯 4: 마석 교환
-        int enchantScrollCost = config.getInt(ConfigKeys.MAGIC_STONE_EXCHANGE_COST, 40);
-        int enchantScrollGained = config.getInt(ConfigKeys.MAGIC_STONE_EXCHANGE_GAINED, 128);
+        int enchantScrollCost = config.getInt("pylon.shop.magic-stone-exchange.cost-level", 40);
+        int enchantScrollGained = config.getInt("pylon.shop.magic-stone-exchange.gained", 128);
         gui.setItem(4, new ItemBuilder(Material.NETHER_STAR)
                 .withName("§6마석 교환")
                 .withLore(
@@ -85,13 +84,13 @@ public class PylonShopManager {
                         "§f가격: §a" + enchantScrollCost + " 레벨",
                         "§f획득: §e마석 " + enchantScrollGained + "개"
                 )
-                .withPDCString(SHOP_ITEM_KEY, ConfigKeys.SHOP_ID_MAGIC_STONE)
+                .withPDCString(SHOP_ITEM_KEY, "magic_stone")
                 .withPDCInt(SHOP_COST_KEY, enchantScrollCost)
                 .build());
 
         // 슬롯 6: 강화석 교환
-        int upgradeStoneCost = config.getInt(ConfigKeys.UPGRADE_STONE_EXCHANGE_COST, 40);
-        int upgradeStoneGained = config.getInt(ConfigKeys.UPGRADE_STONE_EXCHANGE_GAINED, 128);
+        int upgradeStoneCost = config.getInt("pylon.shop.upgrade-stone-exchange.cost-level", 40);
+        int upgradeStoneGained = config.getInt("pylon.shop.upgrade-stone-exchange.gained", 128);
         gui.setItem(6, new ItemBuilder(Material.ECHO_SHARD)
                 .withName("§b강화석 교환")
                 .withLore(
@@ -100,12 +99,12 @@ public class PylonShopManager {
                         "§f가격: §a" + upgradeStoneCost + " 레벨",
                         "§f획득: §e강화석 " + upgradeStoneGained + "개"
                 )
-                .withPDCString(SHOP_ITEM_KEY, ConfigKeys.SHOP_ID_UPGRADE_STONE)
+                .withPDCString(SHOP_ITEM_KEY, "upgrade_stone")
                 .withPDCInt(SHOP_COST_KEY, upgradeStoneCost)
                 .build());
 
         // 슬롯 8: 보조 파일런 코어
-        int auxCoreCostLevel = config.getInt(ConfigKeys.AUX_CORE_COST, 100);
+        int auxCoreCostLevel = config.getInt("pylon.shop.aux-core.cost-level", 100);
         gui.setItem(8, new ItemBuilder(Material.BEACON)
                 .withName("§d보조 파일런 코어")
                 .withLore(
@@ -113,7 +112,7 @@ public class PylonShopManager {
                         "",
                         "§f가격: §a" + auxCoreCostLevel + " 레벨"
                 )
-                .withPDCString(SHOP_ITEM_KEY, ConfigKeys.SHOP_ID_AUX_CORE)
+                .withPDCString(SHOP_ITEM_KEY, "aux_core")
                 .withPDCInt(SHOP_COST_KEY, auxCoreCostLevel)
                 .build());
 
@@ -132,26 +131,26 @@ public class PylonShopManager {
         if (itemId == null) return;
 
         switch (itemId) {
-            case ConfigKeys.SHOP_ID_RECON:
+            case "recon_firework":
                 int reconCost = clickedItem.getItemMeta().getPersistentDataContainer().getOrDefault(SHOP_COST_KEY, PersistentDataType.INTEGER, 50);
                 handleBuyRecon(player, reconCost);
                 break;
-            case ConfigKeys.SHOP_ID_AUX_CORE:
+            case "aux_core":
                 int coreCostLevel = clickedItem.getItemMeta().getPersistentDataContainer().getOrDefault(SHOP_COST_KEY, PersistentDataType.INTEGER, 100);
                 handleBuyAuxCore(player, coreCostLevel);
                 break;
-            case ConfigKeys.SHOP_ID_RETURN_SCROLL:
+            case "return_scroll":
                 int scrollCostLevel = clickedItem.getItemMeta().getPersistentDataContainer().getOrDefault(SHOP_COST_KEY, PersistentDataType.INTEGER, 30);
                 handleExchangeWithLevels(player, scrollCostLevel, PylonItemFactory.createReturnScroll(), "귀환 주문서");
                 break;
-            case ConfigKeys.SHOP_ID_MAGIC_STONE:
+            case "magic_stone":
                 int enchantScrollCost = clickedItem.getItemMeta().getPersistentDataContainer().getOrDefault(SHOP_COST_KEY, PersistentDataType.INTEGER, 30);
-                int enchantScrollGained = plugin.getGameConfigManager().getConfig().getInt(ConfigKeys.MAGIC_STONE_EXCHANGE_GAINED, 128);
+                int enchantScrollGained = plugin.getGameConfigManager().getConfig().getInt("pylon.shop.magic-stone-exchange.gained", 128);
                 handleExchangeWithLevels(player, enchantScrollCost, MagicStone.createMagicStone(enchantScrollGained), "마석");
                 break;
-            case ConfigKeys.SHOP_ID_UPGRADE_STONE:
+            case "upgrade_stone":
                 int upgradeStoneCost = clickedItem.getItemMeta().getPersistentDataContainer().getOrDefault(SHOP_COST_KEY, PersistentDataType.INTEGER, 40);
-                int upgradeStoneGained = plugin.getGameConfigManager().getConfig().getInt(ConfigKeys.UPGRADE_STONE_EXCHANGE_GAINED, 128);
+                int upgradeStoneGained = plugin.getGameConfigManager().getConfig().getInt("pylon.shop.upgrade-stone-exchange.gained", 128);
                 handleExchangeWithLevels(player, upgradeStoneCost, UpgradeItems.createUpgradeStone(upgradeStoneGained), "강화석");
                 break;
         }
@@ -186,7 +185,7 @@ public class PylonShopManager {
             return;
         }
 
-        long reconCooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getPylonReconCooldownHours());
+        long reconCooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getConfig().getInt("pylon.recon-firework.cooldown-hours", 12));
         if (System.currentTimeMillis() - clan.getLastReconFireworkTime() < reconCooldownMillis) {
             player.sendMessage("§c아직 정찰용 폭죽을 구매할 수 없습니다.");
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);

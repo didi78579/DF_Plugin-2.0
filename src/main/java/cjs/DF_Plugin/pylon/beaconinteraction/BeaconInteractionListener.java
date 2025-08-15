@@ -46,7 +46,7 @@ public class BeaconInteractionListener implements Listener {
             return;
         }
 
-        int maxPylons = plugin.getGameConfigManager().getPylonMaxPerClan();
+        int maxPylons = plugin.getGameConfigManager().getConfig().getInt("pylon.max-pylons-per-clan", 1);
         if (clan.getPylonLocations().size() >= maxPylons) {
             player.sendMessage(PREFIX + "§c가문이 가질 수 있는 최대 파일런 개수(" + maxPylons + "개)에 도달했습니다.");
             event.setCancelled(true);
@@ -55,7 +55,7 @@ public class BeaconInteractionListener implements Listener {
 
         if (isMainCore) {
             // 해수면 아래 설치 강제 확인
-            boolean requireBelowSeaLevel = plugin.getGameConfigManager().isPylonRequireBelowSeaLevel();
+            boolean requireBelowSeaLevel = plugin.getGameConfigManager().getConfig().getBoolean("pylon.installation.require-below-sea-level", true);
             if (requireBelowSeaLevel && block.getLocation().getBlockY() >= block.getWorld().getSeaLevel()) {
                 player.sendMessage(PREFIX + "§c주 파일런 코어는 해수면 아래에만 설치할 수 있습니다.");
                 event.setCancelled(true);
@@ -64,8 +64,23 @@ public class BeaconInteractionListener implements Listener {
             plugin.getPylonManager().getRegistrationManager().registerPylon(player, block, clan);
 
         } else if (isAuxiliaryCore) {
+            // 보조 파일런은 주 파일런이 있어야만 설치 가능
+            if (!clan.hasMainPylon()) {
+                player.sendMessage(PREFIX + "§c보조 파일런을 설치하려면 먼저 주 파일런 코어를 설치해야 합니다.");
+                event.setCancelled(true);
+                return;
+            }
+
+            // 멀티 코어 기능 활성화 여부 확인
+            boolean multiCoreEnabled = plugin.getGameConfigManager().getConfig().getBoolean("pylon.features.multi-core", false);
+            if (!multiCoreEnabled) {
+                player.sendMessage(PREFIX + "§c서버에서 멀티 코어 기능이 비활성화되어 있어 보조 파일런을 설치할 수 없습니다.");
+                event.setCancelled(true);
+                return;
+            }
+
             // 해수면 아래 설치 강제 확인
-            boolean requireBelowSeaLevel = plugin.getGameConfigManager().isPylonRequireBelowSeaLevel();
+            boolean requireBelowSeaLevel = plugin.getGameConfigManager().getConfig().getBoolean("pylon.installation.require-below-sea-level", true);
             if (requireBelowSeaLevel && block.getLocation().getBlockY() >= block.getWorld().getSeaLevel()) {
                 player.sendMessage(PREFIX + "§c보조 파일런은 해수면 아래에만 설치할 수 있습니다.");
                 event.setCancelled(true);
@@ -84,9 +99,9 @@ public class BeaconInteractionListener implements Listener {
                 }
             }
 
-            // 보조 파일런은 기존 파일런 영역 내에만 설치 가능
-            if (!plugin.getPylonManager().getAreaManager().isLocationInClanPylonArea(clan, block.getLocation())) {
-                player.sendMessage(PREFIX + "§c보조 파일런은 기존 파일런의 영역 내에만 설치할 수 있습니다.");
+            // 보조 파일런은 주 파일런의 영역 내에만 설치 가능
+            if (!plugin.getPylonManager().getAreaManager().isLocationInClanMainPylonArea(clan, block.getLocation())) {
+                player.sendMessage(PREFIX + "§c보조 파일런은 주 파일런의 영역 내에만 설치할 수 있습니다.");
                 event.setCancelled(true);
                 return;
             }

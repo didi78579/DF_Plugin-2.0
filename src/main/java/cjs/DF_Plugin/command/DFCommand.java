@@ -8,8 +8,6 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import cjs.DF_Plugin.command.admin.DFAdminCommand;
-import cjs.DF_Plugin.command.clan.CreateClanCommand;
 import cjs.DF_Plugin.command.clan.DeleteClanCommand;
 
 

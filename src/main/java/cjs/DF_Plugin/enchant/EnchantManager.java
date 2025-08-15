@@ -2,8 +2,6 @@ package cjs.DF_Plugin.enchant;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.settings.GameConfigManager;
-import cjs.DF_Plugin.settings.ConfigKeys;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
@@ -45,18 +43,25 @@ public class EnchantManager {
 
     private void enchantItem(ItemStack item) {
         GameConfigManager configManager = plugin.getGameConfigManager();
-        double extraEnchantChance = configManager.getConfig().getDouble(ConfigKeys.RANDOM_ENCHANTING_EXTRA_CHANCE, 0.10);
-        double curseChance = configManager.getConfig().getDouble(ConfigKeys.RANDOM_ENCHANTING_CURSE_CHANCE, 0.01);
-        int maxEnchantments = configManager.getConfig().getInt(ConfigKeys.RANDOM_ENCHANTING_MAX_ENCHANTS, 8);
+        double extraEnchantChance = configManager.getConfig().getDouble("enchanting.random-enchanting.extra-enchant-chance", 0.10);
+        double curseChance = configManager.getConfig().getDouble("enchanting.random-enchanting.curse-chance", 0.01);
+        int maxEnchantments = configManager.getConfig().getInt("enchanting.random-enchanting.max-enchantments", 8);
 
         Random random = new Random();
 
-        // 제외할 인챈트 목록 (addRandomEnchant가 저주를 뽑지 않도록)
-        List<Enchantment> excludedEnchants = Arrays.asList(
-                Enchantment.BINDING_CURSE,
-                Enchantment.VANISHING_CURSE,
-                Enchantment.THORNS
-        );
+        // 제외할 인챈트 목록
+        List<Enchantment> excludedEnchants = new ArrayList<>();
+        // 저주는 기본적으로 제외
+        excludedEnchants.add(Enchantment.BINDING_CURSE);
+        excludedEnchants.add(Enchantment.VANISHING_CURSE);
+
+        // 설정에 따라 OP 인챈트 제외
+        if (configManager.isOpEnchantThornsDisabled()) {
+            excludedEnchants.add(Enchantment.THORNS);
+        }
+        if (configManager.isOpEnchantBreachDisabled()) {
+            excludedEnchants.add(Enchantment.BREACH);
+        }
 
         // 1. 기존 인챈트와 저주 분리
         Map<Enchantment, Integer> existingEnchantments = new HashMap<>();

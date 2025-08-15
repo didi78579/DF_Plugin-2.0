@@ -26,10 +26,9 @@ public class NetherManager {
                         continue;
                     }
 
-                    // 1. 네더의 별 또는 화염 저항 효과가 있는지 체크
-                    if (player.getInventory().contains(Material.NETHER_STAR) || player.hasPotionEffect(PotionEffectType.FIRE_RESISTANCE)) {
-                        player.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 100, 0, true, false));
-                        continue;
+                    // 1. 화염 저항 효과가 있는지 체크
+                    if (player.hasPotionEffect(PotionEffectType.FIRE_RESISTANCE)) {
+                        continue; // 화염 저항 효과가 있다면, 아무것도 하지 않고 건너뜁니다.
                     }
 
                     // 2. 보호 수단이 없으면 화염 데미지

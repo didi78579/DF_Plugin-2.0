@@ -70,15 +70,32 @@ public class GameConfigManager {
     // --- Clan Getters ---
     public int getClanMaxMembers() { return config.getInt("pylon.recruitment.max-members", 4); }
 
+    // --- Death & Respawn Getters ---
+    public boolean isDeathTimerEnabled() { return config.getBoolean("death-timer.enabled", true); }
+    public int getDeathTimerDurationMinutes() { return config.getInt("death-timer.time", 5); }
+
     // --- Upgrade System Getters ---
     public boolean isUpgradeShowSuccessChance() { return config.getBoolean("upgrade.show-success-chance", true); }
     public ConfigurationSection getUpgradeLevelSettings() { return config.getConfigurationSection("upgrade.level-settings"); }
 
+    // --- System Toggles ---
+    public boolean isPylonSystemEnabled() { return config.getBoolean("system-toggles.pylon", true); }
+    public boolean isUpgradeSystemEnabled() { return config.getBoolean("system-toggles.upgrade", true); }
+    public boolean isEventSystemEnabled() { return config.getBoolean("system-toggles.events", true); }
+
+
     // --- World & Game Rules Getters ---
     public boolean isWorldRuleKeepInventory() { return config.getBoolean("world.rules.keep-inventory", true); }
-    public boolean isWorldRuleTotemEnabled() { return config.getBoolean("world.rules.totem-enabled", false); }
     public boolean isWorldRuleLocationInfoDisabled() { return config.getBoolean("world.rules.location-info-disabled", true); }
     public boolean isWorldRulePhantomDisabled() { return config.getBoolean("world.rules.phantom-disabled", true); }
+    public boolean isWorldRuleTotemDisabled() { return config.getBoolean("world.rules.totem-disabled", true); }
+    public boolean isWorldRuleEnderChestDisabled() { return config.getBoolean("world.rules.enderchest-disabled", true); }
+
+    /**
+     * 월드 규칙: 플레이어 위치 좌표 막대 비활성화 여부를 반환합니다.
+     * @return 위치 좌표 막대가 비활성화 상태이면 true
+     */
+    public boolean isWorldRuleLocatorBarDisabled() { return config.getBoolean("world.rules.locator-bar-disabled", true); }
     public Difficulty getWorldDifficulty() {
         String difficultyName = config.getString("world.rules.difficulty", "HARD").toUpperCase();
         try {
@@ -94,7 +111,12 @@ public class GameConfigManager {
     public double getWorldBorderEndSize() { return config.getDouble("world.border.end-size", 1000); }
 
 
+    // --- Item & Recipe Getters ---
+    public boolean isOpEnchantBreachDisabled() { return config.getBoolean("items.op-enchant.breach-disabled", true); }
+    public boolean isOpEnchantThornsDisabled() { return config.getBoolean("items.op-enchant.thorns-disabled", true); }
+
     // --- Utility Getters ---
     public boolean isClanChatPrefixEnabled() { return config.getBoolean("utility.clan-chat-prefix-enabled", true); }
     public boolean isKillLogEnabled() { return config.getBoolean("utility.kill-log-enabled", true); }
+    public boolean isChatDisabled() { return config.getBoolean("utility.chat-disabled", false); }
 }

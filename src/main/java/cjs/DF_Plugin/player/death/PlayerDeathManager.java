@@ -28,7 +28,19 @@ public class PlayerDeathManager implements Listener {
 
     public PlayerDeathManager(DF_Main plugin) {
         this.plugin = plugin;
-        this.deathsFile = new File(plugin.getDataFolder(), "deaths.yml");
+        File playersFolder = new File(plugin.getDataFolder(), "players");
+        if (!playersFolder.exists()) {
+            playersFolder.mkdirs();
+        }
+        this.deathsFile = new File(playersFolder, "deaths.yml");
+        if (!deathsFile.exists()) {
+            try {
+                deathsFile.createNewFile();
+                plugin.getLogger().info("Created a new deaths.yml file.");
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "Could not create deaths.yml!", e);
+            }
+        }
         this.deathsConfig = YamlConfiguration.loadConfiguration(deathsFile);
         loadDeaths();
     }
@@ -48,15 +60,17 @@ public class PlayerDeathManager implements Listener {
 
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
-        final boolean deathBanEnabled = plugin.getGameConfigManager().isPylonDeathBanEnabled();
+        final boolean deathBanEnabled = plugin.getGameConfigManager().isDeathTimerEnabled();
         if (!deathBanEnabled) return;
 
         Player player = event.getEntity();
+        // config.yml의 death-timer.time은 분 단위로 저장됩니다.
+        final int banDurationMinutes = plugin.getGameConfigManager().getDeathTimerDurationMinutes();
         deadPlayers.put(player.getUniqueId(), System.currentTimeMillis());
 
-        final int banDurationMinutes = plugin.getGameConfigManager().getPylonDeathBanDurationMinutes();
+        // formatDuration은 분 단위를 받습니다.
         String durationString = formatDuration(banDurationMinutes);
-        player.kickPlayer("§c사망하여 " + durationString + " 동안 추방되었습니다.\n§e가문원에게 부활을 요청할 수 있습니다.");
+        player.kickPlayer("§c사망하여 " + durationString + " 동안 서버에 접속할 수 없습니다.");
     }
 
     @EventHandler
@@ -110,8 +124,9 @@ public class PlayerDeathManager implements Listener {
     }
 
     private long getRemainingBanMillis(UUID playerUUID) {
+        // config.yml의 death-timer.time은 분 단위로 저장됩니다.
         final long deathTime = deadPlayers.get(playerUUID);
-        final int banDurationMinutes = plugin.getGameConfigManager().getPylonDeathBanDurationMinutes();
+        final int banDurationMinutes = plugin.getGameConfigManager().getDeathTimerDurationMinutes();
         final long banEndTime = deathTime + TimeUnit.MINUTES.toMillis(banDurationMinutes);
         return banEndTime - System.currentTimeMillis();
     }

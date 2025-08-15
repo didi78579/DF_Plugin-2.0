@@ -16,12 +16,14 @@ public class SetSettingsCommand {
     private final SettingsEditor settingsEditor;
     private final WorldManager worldManager;
     private final RecipeManager recipeManager;
+    private final DF_Main plugin;
 
     public SetSettingsCommand(DF_Main plugin) {
         this.configManager = plugin.getGameConfigManager();
         this.settingsEditor = new SettingsEditor(plugin);
         this.worldManager = plugin.getWorldManager();
         this.recipeManager = plugin.getRecipeManager();
+        this.plugin = plugin;
     }
 
     public void handle(CommandSender sender, String[] args) {
@@ -50,15 +52,24 @@ public class SetSettingsCommand {
         }
 
         try {
+            Object newValue;
             if (currentValue instanceof Integer) {
-                configManager.getConfig().set(key, Integer.parseInt(valueStr));
+                newValue = Integer.parseInt(valueStr);
             } else if (currentValue instanceof Double) {
-                configManager.getConfig().set(key, Double.parseDouble(valueStr));
+                newValue = Double.parseDouble(valueStr);
             } else if (currentValue instanceof Boolean) {
-                configManager.getConfig().set(key, Boolean.parseBoolean(valueStr));
+                newValue = Boolean.parseBoolean(valueStr);
             } else {
-                configManager.getConfig().set(key, valueStr);
+                newValue = valueStr;
             }
+
+            configManager.getConfig().set(key, newValue);
+
+            // 멀티 코어 기능이 비활성화되면, 모든 보조 파일런을 회수합니다.
+            if (key.equals("pylon.features.multi-core") && newValue instanceof Boolean && !(Boolean) newValue) {
+                plugin.getPylonManager().getFeatureManager().handleMultiCoreDeactivation();
+            }
+
             configManager.save();
             player.sendMessage("§a설정 '" + key + "'을(를) '" + valueStr + "'(으)로 변경했습니다.");
 
@@ -84,7 +95,7 @@ public class SetSettingsCommand {
             settingsEditor.openPylonFeaturesSettings(player);
         } else if (key.startsWith("world.border.")) {
             settingsEditor.openWorldBorderSettings(player);
-        } else if (key.startsWith("world.rules.") || key.startsWith("events.") || key.equals("items.notched-apple-recipe")) {
+        } else if (key.startsWith("world.rules.") || key.startsWith("events.") || key.equals("items.notched-apple-recipe") || key.startsWith("utility.")) {
             settingsEditor.openUtilitySettings(player);
         } else if (key.startsWith("items.op-enchant.")) {
             settingsEditor.openOpEnchantSettings(player);

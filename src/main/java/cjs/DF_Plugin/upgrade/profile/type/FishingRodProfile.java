@@ -2,7 +2,7 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
 import cjs.DF_Plugin.upgrade.UpgradeManager;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.GrabAbility;
 import org.bukkit.enchantments.Enchantment;
@@ -12,7 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class FishingRodProfile implements IWeaponProfile {
+public class FishingRodProfile implements IUpgradeableProfile {
     @Override
     public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
         // 내구성, 미끼, 바다의 행운을 번갈아 올림

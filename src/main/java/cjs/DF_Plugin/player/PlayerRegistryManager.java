@@ -4,6 +4,7 @@ import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -34,9 +35,17 @@ public class PlayerRegistryManager implements Listener {
     }
 
     private void setupPlayersFile() {
-        playersFile = new File(plugin.getDataFolder(), "players.yml");
+        File playersFolder = new File(plugin.getDataFolder(), "players");
+        if (!playersFolder.exists()) {
+            playersFolder.mkdirs();
+        }
+        playersFile = new File(playersFolder, "players.yml");
         if (!playersFile.exists()) {
-            plugin.saveResource("players.yml", false);
+            try {
+                playersFile.createNewFile();
+            } catch (IOException e) {
+                plugin.getLogger().severe("Could not create players.yml: " + e.getMessage());
+            }
         }
         playersConfig = YamlConfiguration.loadConfiguration(playersFile);
     }
@@ -57,6 +66,26 @@ public class PlayerRegistryManager implements Listener {
                     plugin.getLogger().warning("Invalid UUID in players.yml: " + uuidString);
                 }
             }
+        }
+
+        // 서버에 접속한 적 있는 모든 플레이어를 확인하고, 등록되지 않은 경우 새로 등록합니다.
+        boolean needsSave = false;
+        for (OfflinePlayer offlinePlayer : Bukkit.getOfflinePlayers()) {
+            UUID uuid = offlinePlayer.getUniqueId();
+            if (!allPlayers.containsKey(uuid)) {
+                String name = offlinePlayer.getName();
+                if (name != null) {
+                    plugin.getLogger().info("기록에 없는 오프라인 플레이어를 발견하여 등록합니다: " + name);
+                    allPlayers.put(uuid, new RegisteredPlayerData(name, null));
+                    playersConfig.set("players." + uuid + ".name", name);
+                    playersConfig.set("players." + uuid + ".clan", null); // 기본적으로 클랜 없음
+                    needsSave = true;
+                }
+            }
+        }
+
+        if (needsSave) {
+            savePlayersFile();
         }
     }
 

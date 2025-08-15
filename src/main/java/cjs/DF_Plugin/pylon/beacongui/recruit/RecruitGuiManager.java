@@ -40,14 +40,14 @@ public class RecruitGuiManager {
         Clan clan = plugin.getClanManager().getClanByPlayer(player.getUniqueId());
         if (clan == null) return;
 
-        GameConfigManager config = plugin.getGameConfigManager();
+        org.bukkit.configuration.file.FileConfiguration config = plugin.getGameConfigManager().getConfig();
 
-        if (clan.getMembers().size() >= config.getClanMaxMembers()) {
+        if (clan.getMembers().size() >= config.getInt("pylon.recruitment.max-members", 4)) {
             player.sendMessage(PREFIX + "§c가문 인원이 최대치에 도달하여 더 이상 팀원을 뽑을 수 없습니다.");
             player.closeInventory();
             return;
         }
-        String mode = config.getPylonRecruitmentMode();
+        String mode = config.getString("pylon.recruitment.mode", "roulette");
 
         if ("roulette".equalsIgnoreCase(mode)) {
             openRouletteStartGui(player, clan);
@@ -72,7 +72,7 @@ public class RecruitGuiManager {
                     .build();
             gui.setItem(13, noPlayers);
         } else {
-            int costPerMember = plugin.getGameConfigManager().getPylonRecruitCostPerMember();
+            int costPerMember = plugin.getGameConfigManager().getConfig().getInt("pylon.recruitment.cost-per-member", 64);
             int totalCost = clan.getMembers().size() * costPerMember;
 
             for (UUID playerUUID : recruitable) {
@@ -87,7 +87,7 @@ public class RecruitGuiManager {
 
     private void openRouletteStartGui(Player player, Clan clan) {
         Inventory gui = Bukkit.createInventory(null, 27, RECRUIT_GUI_TITLE_ROULETTE);
-        int costPerMember = plugin.getGameConfigManager().getPylonRecruitCostPerMember();
+        int costPerMember = plugin.getGameConfigManager().getConfig().getInt("pylon.recruitment.cost-per-member", 64);
         int totalCost = clan.getMembers().size() * costPerMember;
 
         ItemStack startButton = new ItemBuilder(Material.DIAMOND)
@@ -148,7 +148,7 @@ public class RecruitGuiManager {
         }
 
         // 비용 확인
-        int costPerMember = plugin.getGameConfigManager().getPylonRecruitCostPerMember();
+        int costPerMember = plugin.getGameConfigManager().getConfig().getInt("pylon.recruitment.cost-per-member", 64);
         int totalCost = clan.getMembers().size() * costPerMember;
 
         if (!player.getInventory().contains(Material.DIAMOND, totalCost)) {
@@ -176,7 +176,7 @@ public class RecruitGuiManager {
         Clan clan = plugin.getClanManager().getClanByPlayer(player.getUniqueId());
         if (clan == null) return;
 
-        int costPerMember = plugin.getGameConfigManager().getPylonRecruitCostPerMember();
+        int costPerMember = plugin.getGameConfigManager().getConfig().getInt("pylon.recruitment.cost-per-member", 64);
         int totalCost = clan.getMembers().size() * costPerMember;
 
         if (!player.getInventory().contains(Material.DIAMOND, totalCost)) {

@@ -2,6 +2,7 @@ package cjs.DF_Plugin.pylon.beaconinteraction;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
+import cjs.DF_Plugin.pylon.PylonType;
 import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.util.PluginUtils;
 import org.bukkit.Particle;
@@ -39,6 +40,13 @@ public class PylonAreaManager {
     public void addProtectedPylon(Location location, Clan clan) {
         String locString = PluginUtils.serializeLocation(location);
         protectedPylons.put(locString, clan);
+
+        // 파티클 표시 작업이 실행 중이 아니거나 취소되었다면 다시 시작합니다.
+        // 이는 서버 시작 후 첫 파일런을 설치하거나, 모든 파일런이 제거된 후 새로 설치할 때 필요합니다.
+        if (particleTask == null || particleTask.isCancelled()) {
+            startParticleTask();
+        }
+
         plugin.getLogger().info("Pylon protection enabled for clan " + clan.getName() + " at " + locString);
     }
 
@@ -117,8 +125,9 @@ public class PylonAreaManager {
     }
 
     public void applyAreaEffects() {
-        boolean allyBuffEnabled = configManager.isPylonAllyBuffEnabled();
-        boolean enemyDebuffEnabled = configManager.isPylonEnemyDebuffEnabled();
+        boolean allyBuffEnabled = configManager.getConfig().getBoolean("pylon.area-effects.ally-buff-enabled", true);
+        boolean enemyDebuffEnabled = configManager.getConfig().getBoolean("pylon.area-effects.enemy-debuff-enabled", true);
+
 
         if (!allyBuffEnabled && !enemyDebuffEnabled) {
             if (!intruderTracker.isEmpty()) {
@@ -200,6 +209,24 @@ public class PylonAreaManager {
     }
 
     /**
+     * 지정된 위치가 가문의 '주 파일런' 영역 내에 있는지 확인합니다.
+     * @param clan 확인할 가문
+     * @param location 확인할 위치
+     * @return 주 파일런 영역 내에 있으면 true
+     */
+    public boolean isLocationInClanMainPylonArea(Clan clan, Location location) {
+        int radius = configManager.getConfig().getInt("pylon.area-effects.radius", 50);
+        int radiusSquared = radius * radius;
+
+        return clan.getPylonLocations().stream()
+                .filter(pylonLocStr -> clan.getPylonType(pylonLocStr) == PylonType.MAIN_CORE) // 주 파일런만 필터링
+                .anyMatch(pylonLocStr -> {
+                    Location pylonLoc = PluginUtils.deserializeLocation(pylonLocStr);
+                    return pylonLoc != null && pylonLoc.getWorld() != null && pylonLoc.getWorld().equals(location.getWorld()) && distanceSquared2D(location, pylonLoc) <= radiusSquared;
+                });
+    }
+
+    /**
      * 두 위치의 Y축을 무시한 2D 거리의 제곱을 계산합니다.
      * @param loc1 첫 번째 위치
      * @param loc2 두 번째 위치
@@ -227,37 +254,60 @@ public class PylonAreaManager {
                 if (protectedPylons.isEmpty()) return;
                 // Use a copy to prevent ConcurrentModificationException if pylons are added/removed
                 new HashMap<>(protectedPylons).forEach((locStr, clan) -> {
-                    Location pylonLoc = PluginUtils.deserializeLocation(locStr);
-                    if (pylonLoc != null) {
-                        spawnBoundaryParticles(pylonLoc);
+                    Location center = PluginUtils.deserializeLocation(locStr);
+                    if (center != null) {
+                        spawnBoundaryParticles(center, clan);
                     }
                 });
             }
         }.runTaskTimer(plugin, 0L, 10L); // 0.5초마다 실행하여 끊김 없는 효과를 연출
     }
 
-    private void spawnBoundaryParticles(Location center) {
+    private void spawnBoundaryParticles(Location center, Clan clan) {
         World world = center.getWorld();
-        if (world == null) return;
+        if (world == null) return; // 월드가 로드되지 않았으면 중단
 
+        String centerLocStr = PluginUtils.serializeLocation(center);
+        PylonType pylonType = clan.getPylonType(centerLocStr);
+        if (pylonType == null) return; // 데이터 불일치 시 중단
+
+        Particle particleType = (pylonType == PylonType.MAIN_CORE) ? Particle.FLAME : Particle.SOUL_FIRE_FLAME;
         int radius = configManager.getConfig().getInt("pylon.area-effects.radius", 50);
+        int radiusSquared = radius * radius;
+
         // 파티클 밀도를 높여 경계선이 더 촘촘하게 보이도록 합니다.
         final int points = 150;
         for (int i = 0; i < points; i++) {
             double angle = 2 * Math.PI * i / points;
             double x = center.getX() + radius * Math.cos(angle);
             double z = center.getZ() + radius * Math.sin(angle);
+            Location particlePoint = new Location(world, x, center.getY(), z);
 
-            spawnWallParticle(world, (int) x, (int) z);
+            boolean shouldSpawn = true;
+            // 주 파일런의 파티클은 다른 영역과 겹쳐도 항상 표시됩니다.
+            if (pylonType == PylonType.AUXILIARY) {
+                // 보조 파일런의 파티클은 다른 파일런의 영역 내부에 있으면 생성하지 않습니다.
+                boolean isInsideAnotherPylon = protectedPylons.keySet().stream()
+                        .filter(otherLocStr -> !otherLocStr.equals(centerLocStr)) // 자기 자신은 제외
+                        .map(PluginUtils::deserializeLocation)
+                        .filter(otherCenter -> otherCenter != null && otherCenter.getWorld().equals(world))
+                        .anyMatch(otherCenter -> distanceSquared2D(particlePoint, otherCenter) < radiusSquared);
+
+                if (isInsideAnotherPylon) {
+                    shouldSpawn = false;
+                }
+            }
+
+            if (shouldSpawn) {
+                spawnWallParticle(world, (int) x, (int) z, particleType);
+            }
         }
     }
 
-    private void spawnWallParticle(World world, int x, int z) {
+    private void spawnWallParticle(World world, int x, int z, Particle particleType) {
         Block highestBlock = world.getHighestBlockAt(x, z);
-        Location baseLoc = highestBlock.getLocation().add(0.5, 1.2, 0.5); // 블록 중앙, 약간 위
-        // 파티클을 수직으로 여러 개 생성하여 더 크고 굵은 '벽' 효과를 줍니다.
-        for (double yOffset = 0; yOffset <= 1.5; yOffset += 0.75) {
-            world.spawnParticle(Particle.SOUL_FIRE_FLAME, baseLoc.clone().add(0, yOffset, 0), 1, 0, 0, 0, 0);
-        }
+        Location particleLoc = highestBlock.getLocation().add(0.5, 1.2, 0.5); // 블록 중앙, 약간 위
+        // 단일 파티클을 생성하여 '선' 효과를 줍니다.
+        world.spawnParticle(particleType, particleLoc, 1, 0, 0, 0, 0);
     }
 }

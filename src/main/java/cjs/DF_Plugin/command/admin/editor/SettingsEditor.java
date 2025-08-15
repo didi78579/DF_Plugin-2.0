@@ -86,12 +86,14 @@ public class SettingsEditor {
     public void openUtilitySettings(Player player) {
         player.sendMessage("§e======== §f[유틸리티 설정] §e========");
         sendBooleanSetting(player, "인벤토리 유지", "world.rules.keep-inventory");
-        sendBooleanSetting(player, "좌표 비활성화", "world.rules.location-info-disabled");
-        sendBooleanSetting(player, "팬텀 비활성화", "world.rules.phantom-disabled");
+        sendInvertedBooleanSetting(player, "좌표 표시", "world.rules.location-info-disabled");
+        sendInvertedBooleanSetting(player, "팬텀 생성", "world.rules.phantom-disabled");
+        sendInvertedBooleanSetting(player, "좌표 막대 표시", "world.rules.locator-bar-disabled");
         sendBooleanSetting(player, "마법 황금사과 조합", "items.notched-apple-recipe");
-        sendBooleanSetting(player, "불사의 토템", "world.rules.totem-enabled");
-        sendBooleanSetting(player, "엔더 상자", "world.rules.enderchest-enabled");
+        sendInvertedBooleanSetting(player, "불사의 토템 사용", "world.rules.totem-disabled");
+        sendInvertedBooleanSetting(player, "엔더 상자 사용", "world.rules.enderchest-disabled");
         sendNumberSetting(player, "포션 소지 제한", "world.rules.potion-limit", 1);
+        sendInvertedBooleanSetting(player, "전체 채팅 사용", "utility.chat-disabled");
         sendBooleanSetting(player, "보급 활성화", "events.supply-drop-enabled");
         player.sendMessage("§e===================================");
         sendBackButton(player);
@@ -102,8 +104,8 @@ public class SettingsEditor {
      */
     public void openOpEnchantSettings(Player player) {
         player.sendMessage("§e======== §f[OP 인챈트 설정] §e========");
-        sendBooleanSetting(player, "격파(Breach)", "items.op-enchant.breach-enabled");
-        sendBooleanSetting(player, "가시(Thorns)", "items.op-enchant.thorns-enabled");
+        sendInvertedBooleanSetting(player, "격파(Breach) 부여", "items.op-enchant.breach-disabled");
+        sendInvertedBooleanSetting(player, "가시(Thorns) 부여", "items.op-enchant.thorns-disabled");
         player.sendMessage("§e===================================");
         sendBackButton(player);
     }
@@ -141,11 +143,11 @@ public class SettingsEditor {
         player.sendMessage("");
 
         TextComponent confirmButton = new TextComponent("  §a[네, 초기화를 진행합니다]");
-        confirmButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/dfadmin settings confirmreset_step2"));
+        confirmButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df admin settings confirmreset_step2"));
         confirmButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("§a초기화를 계속 진행합니다.").create()));
 
         TextComponent cancelButton = new TextComponent("  §c[아니요, 취소합니다]");
-        cancelButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/dfadmin settings"));
+        cancelButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/df admin settings"));
         cancelButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("§c초기화를 취소하고 이전 메뉴로 돌아갑니다.").create()));
 
         player.spigot().sendMessage(confirmButton);
@@ -268,6 +270,20 @@ public class SettingsEditor {
     private void sendBooleanSetting(Player player, String name, String key) {
         boolean value = configManager.getConfig().getBoolean(key);
         String displayValue = value ? "§a활성화" : "§c비활성화";
+        String command = "/df admin set " + key + " " + !value;
+
+        TextComponent message = new TextComponent("§7- " + name + ": ");
+        TextComponent valueComponent = new TextComponent("[" + displayValue + "§r]");
+        valueComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command));
+        valueComponent.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("§e클릭하여 토글").create()));
+        message.addExtra(valueComponent);
+        player.spigot().sendMessage(message);
+    }
+
+    private void sendInvertedBooleanSetting(Player player, String name, String key) {
+        boolean value = configManager.getConfig().getBoolean(key);
+        // 값이 true이면 '비활성화'로, false이면 '활성화'로 표시 (논리 반전)
+        String displayValue = value ? "§c비활성화" : "§a활성화";
         String command = "/df admin set " + key + " " + !value;
 
         TextComponent message = new TextComponent("§7- " + name + ": ");

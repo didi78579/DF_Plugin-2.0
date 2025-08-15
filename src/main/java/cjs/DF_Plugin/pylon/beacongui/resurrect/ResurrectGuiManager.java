@@ -98,11 +98,11 @@ public class ResurrectGuiManager {
 
         // Calculate cost again to be safe
         long deathTime = plugin.getPlayerDeathManager().getDeadPlayers().get(targetUUID);
-        int banDurationMinutes = plugin.getGameConfigManager().getPylonDeathBanDurationMinutes();
+        int banDurationMinutes = plugin.getGameConfigManager().getConfig().getInt("pylon.death-ban.duration-minutes", 60);
         long banEndTime = deathTime + TimeUnit.MINUTES.toMillis(banDurationMinutes);
         long remainingMillis = Math.max(0, banEndTime - System.currentTimeMillis());
         long remainingMinutes = TimeUnit.MILLISECONDS.toMinutes(remainingMillis);
-        int costPerMinute = plugin.getGameConfigManager().getPylonResurrectionCostPerMinute();
+        int costPerMinute = plugin.getGameConfigManager().getConfig().getInt("pylon.death-ban.resurrection-cost-per-minute", 1);
         long totalCost = remainingMinutes * costPerMinute;
 
         if (!player.getInventory().contains(Material.EMERALD, (int) totalCost)) {

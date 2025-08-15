@@ -42,7 +42,7 @@ public class PylonRetrievalManager {
             return false;
         }
 
-        long cooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getPylonRetrievalCooldownHours());
+        long cooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getConfig().getInt("pylon.retrieval.cooldown-hours", 24));
         if (System.currentTimeMillis() - clan.getLastRetrievalTime() < cooldownMillis) {
             long remainingMillis = cooldownMillis - (System.currentTimeMillis() - clan.getLastRetrievalTime());
             String remainingTime = String.format("%02d시간 %02d분",

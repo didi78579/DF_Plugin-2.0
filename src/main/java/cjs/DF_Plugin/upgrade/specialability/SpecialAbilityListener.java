@@ -1,8 +1,11 @@
 package cjs.DF_Plugin.upgrade.specialability;
 
 import cjs.DF_Plugin.DF_Main;
+import cjs.DF_Plugin.upgrade.specialability.impl.BackflowAbility;
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Trident;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -78,158 +81,141 @@ public class SpecialAbilityListener implements Listener {
         }
 
         specialAbilityManager.getAbilityFromItem(item).ifPresent(ability -> {
-            // 복합적인 능력(방패, 활, 그래플링 훅 등)은 자체적으로 쿨다운/충전 로직을 관리하므로
-            // 리스너에서 일괄적으로 쿨다운을 체크하거나 설정하지 않습니다.
-            String internalName = ability.getInternalName();
-            boolean isSelfManaged = internalName.equals("shield_bash")
-                    || internalName.equals("supercharge")
-                    || internalName.equals("grappling_hook")
-                    || internalName.equals("grab");
-
-            if (!isSelfManaged) {
-                if (specialAbilityManager.isAbilityOnCooldown(player, ability, item)) return;
-                specialAbilityManager.setCooldown(player, ability, item);
-            }
+            // 리스너는 이벤트를 전달할 뿐, 모든 쿨다운 및 사용 조건 확인은 각 능력 클래스가 책임집니다.
             ability.onPlayerInteract(event, player, item);
         });
     }
 
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
-        // 공격자 능력 (예: 무적 관통)
-        if (event.getDamager() instanceof Player attacker) {
-            ItemStack item = attacker.getInventory().getItemInMainHand();
-            specialAbilityManager.getAbilityFromItem(item).ifPresent(ability -> {
-                // 'vampirism', 'stun' 등은 확률적으로 발동하거나 자체적으로 쿨다운을 설정하므로,
-                // 리스너에서 강제로 쿨다운을 걸지 않습니다.
-                String internalName = ability.getInternalName();
-                boolean isSelfManaged = internalName.equals("vampirism")
-                        || internalName.equals("stun");
+        // --- 공격자(Attacker)의 능력 처리 ---
+        Player attacker = null;
+        ItemStack weapon = null;
 
-                if (isSelfManaged) {
-                        // 능력 클래스가 자체적으로 쿨다운 확인 및 설정을 처리합니다.
-                        ability.onDamageByEntity(event, attacker, item);
-                    } else {
-                        // 리스너가 쿨다운을 관리합니다.
-                        if (!specialAbilityManager.isAbilityOnCooldown(attacker, ability, item)) {
-                            ability.onDamageByEntity(event, attacker, item);
-                            specialAbilityManager.setCooldown(attacker, ability, item);
-                        }
-                    }
-            });
-        }
-
-        // 삼지창 투사체에 의한 피격 능력
-        if (event.getDamager() instanceof Trident trident && trident.getShooter() instanceof Player shooter) {
-            // 슈터가 던질 때 사용한 아이템을 기반으로 능력을 확인해야 합니다.
-            // 가장 신뢰성 있는 방법은 아니지만, 현재 손에 들고 있는 아이템을 확인합니다.
-            ItemStack itemInHand = shooter.getInventory().getItemInMainHand();
-            if (itemInHand.getType() == Material.TRIDENT) {
-                specialAbilityManager.getAbilityFromItem(itemInHand).ifPresent(ability -> {
-                    // onDamageByEntity의 'player'는 능력을 사용한 주체(슈터)입니다.
-                    ability.onDamageByEntity(event, shooter, itemInHand);
-                });
-            }
-        }
-
-        // 화살 투사체에 의한 피격 능력 (슈퍼차지, 레이저샷 등)
-        if (event.getDamager() instanceof Arrow arrow && arrow.getShooter() instanceof Player shooter) {
-            // 슈터가 활/쇠뇌를 쏠 때 사용했던 무기를 기반으로 능력을 확인해야 합니다.
-            // 가장 신뢰성 있는 방법은 아니지만, 현재 손에 들고 있는 아이템을 확인합니다.
-            ItemStack weapon = shooter.getInventory().getItemInMainHand();
-            // 주 손에 무기가 없으면 다른 손도 확인
-            if (weapon.getType() != Material.BOW && weapon.getType() != Material.CROSSBOW) {
-                weapon = shooter.getInventory().getItemInOffHand();
-            }
-
-            final ItemStack finalWeapon = weapon;
-            if (finalWeapon.getType() == Material.BOW || finalWeapon.getType() == Material.CROSSBOW) {
-                specialAbilityManager.getAbilityFromItem(finalWeapon).ifPresent(ability -> {
-                    // onDamageByEntity의 'player'는 능력을 사용한 주체(슈터)입니다.
-                    ability.onDamageByEntity(event, shooter, finalWeapon);
-                });
-            }
-        }
-
-        // 피격자 능력 (예: 피해 무효화)
-        if (event.getEntity() instanceof Player victim) {
-            // 갑옷 능력
-            for (ItemStack armor : victim.getInventory().getArmorContents()) {
-                specialAbilityManager.getAbilityFromItem(armor).ifPresent(ability -> {
-                    String internalName = ability.getInternalName();
-                    // 자체 관리 능력들은 스스로 쿨다운을 확인하고 로직을 처리합니다.
-                    boolean isSelfManaged = internalName.equals("double_jump") || internalName.equals("damage_negation");
-
-                    if (isSelfManaged) {
-                        ability.onDamageByEntity(event, victim, armor);
-                    } else {
-                        // 그 외 간단한 방어 능력들은 리스너가 쿨다운을 확인합니다.
-                        if (!specialAbilityManager.isAbilityOnCooldown(victim, ability, armor)) {
-                            ability.onDamageByEntity(event, victim, armor);
-                        }
-                    }
-                });
-            }
-            // 손에 들고 있는 아이템의 능력 확인 (그래플링 훅)
-            ItemStack itemInHand = victim.getInventory().getItemInMainHand();
-            specialAbilityManager.getAbilityFromItem(itemInHand).ifPresent(handAbility -> {
-                if (handAbility.getInternalName().equals("grappling_hook")) {
-                    // onDamageByEntity를 호출하여 훅이 고정된 상태라면 취소하도록 합니다.
-                    handAbility.onDamageByEntity(event, victim, itemInHand);
+        // 공격의 주체를 찾습니다. (직접 공격 플레이어 또는 투사체 발사자)
+        if (event.getDamager() instanceof Player p) {
+            attacker = p;
+            weapon = attacker.getInventory().getItemInMainHand();
+        } else if (event.getDamager() instanceof org.bukkit.entity.Projectile projectile && projectile.getShooter() instanceof Player p) {
+            attacker = p;
+            // 투사체 종류에 따라 사용한 무기를 추정합니다.
+            if (projectile instanceof Arrow) {
+                ItemStack mainHand = attacker.getInventory().getItemInMainHand();
+                ItemStack offHand = attacker.getInventory().getItemInOffHand();
+                if (mainHand.getType() == Material.BOW || mainHand.getType() == Material.CROSSBOW) {
+                    weapon = mainHand;
+                } else if (offHand.getType() == Material.BOW || offHand.getType() == Material.CROSSBOW) {
+                    weapon = offHand;
                 }
-            });
+            } else if (projectile instanceof Trident) {
+                ItemStack mainHand = attacker.getInventory().getItemInMainHand();
+                ItemStack offHand = attacker.getInventory().getItemInOffHand();
 
-            // 방패 능력 (도끼 스턴 방지 등)
-            ItemStack shield = null;
-            if (victim.getInventory().getItemInMainHand().getType() == Material.SHIELD) {
-                shield = victim.getInventory().getItemInMainHand();
-            } else if (victim.getInventory().getItemInOffHand().getType() == Material.SHIELD) {
-                shield = victim.getInventory().getItemInOffHand();
+                // '역류' 능력의 패시브 투사체 처리
+                if (projectile.hasMetadata("df_backflow_projectile") && event.getEntity() instanceof LivingEntity target) {
+                    // 플레이어가 자신의 투사체에 맞는 경우 무시
+                    if (target.getUniqueId().equals(p.getUniqueId())) {
+                        event.setCancelled(true);
+                        return;
+                    }
+
+                    ItemStack tridentInHand = (mainHand.getType() == Material.TRIDENT) ? mainHand : offHand;
+                    if (tridentInHand.getType() == Material.TRIDENT) {
+                        specialAbilityManager.getAbilityFromItem(tridentInHand).ifPresent(ability -> {
+                            if (ability instanceof BackflowAbility backflowAbility) {
+                                backflowAbility.handlePassiveTridentHit(p, target);
+                                event.setCancelled(true); // 기본 데미지 및 다른 효과(둔화) 방지
+                            }
+                        });
+                        // 이벤트가 처리되었으면 여기서 종료하여, 아래의 일반 무기 처리 로직이 실행되지 않도록 합니다.
+                        if (event.isCancelled()) return;
+                    }
+                }
+
+                if (mainHand.getType() == Material.TRIDENT) {
+                    weapon = mainHand;
+                } else if (offHand.getType() == Material.TRIDENT) {
+                    weapon = offHand;
+                }
             }
-            final ItemStack finalShield = shield;
-            if (finalShield != null) {
-                specialAbilityManager.getAbilityFromItem(finalShield).ifPresent(shieldAbility -> {
-                    shieldAbility.onDamageByEntity(event, victim, finalShield);
-                });
+        }
+
+        // 공격자와 사용한 무기가 식별된 경우, 능력 발동
+        if (attacker != null && weapon != null) {
+            final Player finalAttacker = attacker; // 람다에서 사용하기 위해 final 변수에 할당
+            final ItemStack finalWeapon = weapon; // weapon은 이미 effectively final이지만, 명확성을 위해 final로 선언합니다.
+            specialAbilityManager.getAbilityFromItem(finalWeapon)
+                    .ifPresent(ability -> ability.onDamageByEntity(event, finalAttacker, finalWeapon));
+        }
+
+        // --- 피격자(Victim)의 능력 처리 ---
+        if (event.getEntity() instanceof Player victim) {
+            // 1. 갑옷 능력 (항상 방어/유틸 능력으로 간주)
+            for (ItemStack armor : victim.getInventory().getArmorContents()) {
+                if (armor == null || armor.getType() == Material.AIR) continue;
+                specialAbilityManager.getAbilityFromItem(armor)
+                        .ifPresent(ability -> ability.onDamageByEntity(event, victim, armor));
             }
+
+            // 2. 양손에 든 아이템의 능력 (방어/유틸리티 아이템만)
+            handleVictimHeldItem(event, victim, victim.getInventory().getItemInMainHand());
+            handleVictimHeldItem(event, victim, victim.getInventory().getItemInOffHand());
+        }
+    }
+
+    /**
+     * 피격자가 손에 든 아이템의 방어/유틸리티 능력을 처리합니다.
+     * 공격용 무기에 붙은 능력은 발동되지 않도록, 특정 아이템 타입(방패, 낚싯대 등)만 허용합니다.
+     */
+    private void handleVictimHeldItem(EntityDamageByEntityEvent event, Player victim, ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return;
+        }
+
+        Material itemType = item.getType();
+
+        // 피격 시 발동해야 하는 방어/유틸리티 아이템 타입만 명시적으로 허용합니다.
+        if (itemType == Material.SHIELD || itemType == Material.FISHING_ROD) {
+            specialAbilityManager.getAbilityFromItem(item)
+                    .ifPresent(ability -> ability.onDamageByEntity(event, victim, item));
         }
     }
 
     @EventHandler
     public void onPlayerToggleFlight(PlayerToggleFlightEvent event) {
         Player player = event.getPlayer();
-        ItemStack boots = player.getInventory().getBoots();
-        if (boots == null) return;
-        
-        specialAbilityManager.getAbilityFromItem(boots).ifPresent(ability -> {
-            // DoubleJumpAbility 같은 비행 관련 능력은 자체적으로 쿨다운을 확인하고 처리하도록 위임합니다.
-            // 리스너는 이벤트를 전달하는 역할만 수행하여 코드 구조를 명확하게 합니다.
-            ability.onToggleFlight(event, player, boots);
-        });
+        if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
+            return;
+        }
+
+        // 플레이어가 착용한 모든 장비를 확인하여 능력을 찾습니다.
+        for (ItemStack armor : player.getInventory().getArmorContents()) {
+            if (armor != null) {
+                specialAbilityManager.getAbilityFromItem(armor).ifPresent(ability -> {
+                    ability.onPlayerToggleFlight(event, player, armor);
+                });
+            }
+        }
     }
 
     @EventHandler
     public void onPlayerToggleSneak(PlayerToggleSneakEvent event) {
         Player player = event.getPlayer();
 
-        // 레깅스 능력 (슈퍼 점프)
-        ItemStack leggings = player.getInventory().getLeggings();
-        if (leggings != null) {
-            specialAbilityManager.getAbilityFromItem(leggings).ifPresent(leggingsAbility -> {
-                // 슈퍼 점프 능력만 웅크리기 이벤트에 반응하도록 명시
-                if (leggingsAbility.getInternalName().equals("super_jump")) {
-                    leggingsAbility.onPlayerToggleSneak(event, player, leggings);
-                }
-            });
+        // 갑옷 부위의 능력을 확인합니다 (레깅스, 부츠 등).
+        // 슈퍼 점프(레깅스)와 공중 대시(부츠)는 모두 웅크리기로 발동되므로,
+        // 이 핸들러에서 모든 갑옷을 순회하며 처리하는 것이 효율적입니다.
+        for (ItemStack armor : player.getInventory().getArmorContents()) {
+            if (armor != null) {
+                specialAbilityManager.getAbilityFromItem(armor)
+                        .ifPresent(ability -> ability.onPlayerToggleSneak(event, player, armor));
+            }
         }
 
-        // 손에 든 아이템 능력 (그래플링 훅)
+        // 손에 든 아이템 능력 (그래플링 훅 등)
         ItemStack itemInHand = player.getInventory().getItemInMainHand();
-        specialAbilityManager.getAbilityFromItem(itemInHand).ifPresent(handAbility -> {
-            if (handAbility.getInternalName().equals("grappling_hook")) {
-                handAbility.onPlayerToggleSneak(event, player, itemInHand);
-            }
-        });
+        specialAbilityManager.getAbilityFromItem(itemInHand)
+                .ifPresent(ability -> ability.onPlayerToggleSneak(event, player, itemInHand));
     }
 
     @EventHandler
@@ -239,31 +225,12 @@ public class SpecialAbilityListener implements Listener {
             return;
         }
 
-        // 이중 도약 능력의 비행 활성화/비활성화 처리
-        ItemStack boots = player.getInventory().getBoots();
-
-        boolean hasDoubleJump = specialAbilityManager.getAbilityFromItem(boots)
-                .filter(ability -> ability.getInternalName().equals("double_jump"))
-                .isPresent();
-
-        if (hasDoubleJump) {
-            if (player.isOnGround() && !player.getAllowFlight()) {
-                player.setAllowFlight(true);
-            }
-        } else {
-            // 이중 도약 부츠를 신고 있지 않으면 비행을 비활성화
-            if (player.getAllowFlight()) {
-                player.setAllowFlight(false);
-            }
-        }
-
-        // 이동 시 발동하는 모든 장비의 특수 능력 처리 (예: 재생)
+        // 이중 도약(더블 점프) 관련 비행 제어 로직을 제거합니다.
+        // 새로운 '공중 대시'는 웅크리기로 발동되므로, onPlayerMove에서 비행 상태를 제어할 필요가 없습니다.
+        // 이동 시 발동하는 모든 장비의 특수 능력 처리 (예: 재생, 슈퍼점프 상태 초기화)
         for (ItemStack armor : player.getInventory().getArmorContents()) {
-            specialAbilityManager.getAbilityFromItem(armor).ifPresent(moveAbility -> {
-                if (!specialAbilityManager.isAbilityOnCooldown(player, moveAbility, armor)) {
-                    moveAbility.onPlayerMove(event, player, armor);
-                }
-            });
+            specialAbilityManager.getAbilityFromItem(armor)
+                    .ifPresent(ability -> ability.onPlayerMove(event, player, armor));
         }
     }
 

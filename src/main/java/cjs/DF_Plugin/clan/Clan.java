@@ -151,4 +151,12 @@ public class Clan {
             }
         }
     }
+
+    /**
+     * 이 가문이 주 파일런 코어를 소유하고 있는지 확인합니다.
+     * @return 주 파일런 코어가 있으면 true
+     */
+    public boolean hasMainPylon() {
+        return pylonLocations.values().stream().anyMatch(type -> type == PylonType.MAIN_CORE);
+    }
 }

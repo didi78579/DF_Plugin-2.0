@@ -1,6 +1,6 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.IgnoreInvulnerabilityAbility;
 import org.bukkit.Material;
@@ -12,7 +12,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.List;
 import java.util.UUID;
 
-public class SwordProfile implements IWeaponProfile {
+public class SwordProfile implements IUpgradeableProfile {
 
     @Override
     public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
@@ -22,13 +22,13 @@ public class SwordProfile implements IWeaponProfile {
 
         // 아이템의 기본 공격력을 다시 설정합니다.
         double baseAttackDamage = getBaseAttackDamage(item.getType());
-        AttributeModifier damageModifier = new AttributeModifier(UUID.randomUUID(), "generic.attackDamage", baseAttackDamage, AttributeModifier.Operation.ADD_NUMBER);
+        AttributeModifier damageModifier = new AttributeModifier(UUID.randomUUID(), "generic.attackDamage", baseAttackDamage, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND);
         meta.addAttributeModifier(Attribute.GENERIC_ATTACK_DAMAGE, damageModifier);
 
         // 강화 레벨에 따른 공격 속도 보너스를 추가합니다.
         double attackSpeedBonus = level * 0.3; // 레벨당 0.3 증가
         if (attackSpeedBonus > 0) {
-            AttributeModifier speedModifier = new AttributeModifier(UUID.randomUUID(), "upgrade.attackSpeed", attackSpeedBonus, AttributeModifier.Operation.ADD_NUMBER);
+            AttributeModifier speedModifier = new AttributeModifier(UUID.randomUUID(), "upgrade.attackSpeed", attackSpeedBonus, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND);
             meta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, speedModifier);
         }
     }

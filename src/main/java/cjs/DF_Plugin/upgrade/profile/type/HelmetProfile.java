@@ -1,7 +1,7 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
 import cjs.DF_Plugin.upgrade.UpgradeManager;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.RegenerationAbility;
 import org.bukkit.enchantments.Enchantment;
@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class HelmetProfile implements IWeaponProfile {
+public class HelmetProfile implements IUpgradeableProfile {
     @Override
     public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
         // 10강에서 목표 레벨 4를 만들기 위한 값 (10 * 0.4 = 4)

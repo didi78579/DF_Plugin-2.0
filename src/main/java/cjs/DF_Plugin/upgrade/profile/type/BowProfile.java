@@ -2,15 +2,15 @@ package cjs.DF_Plugin.upgrade.profile.type;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.settings.GameConfigManager;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
-import cjs.DF_Plugin.upgrade.specialability.impl.SuperchargeBowAbility;
+import cjs.DF_Plugin.upgrade.specialability.impl.SuperchargeAbility;
 import org.bukkit.ChatColor;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.List;
 
-public class BowProfile implements IWeaponProfile {
+public class BowProfile implements IUpgradeableProfile {
     @Override
     public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
         // 과거 코드에 따라, 활은 강화 레벨에 비례한 추가 피해를 로어에 직접 기록합니다.
@@ -30,6 +30,6 @@ public class BowProfile implements IWeaponProfile {
 
     @Override
     public ISpecialAbility getSpecialAbility() {
-        return new SuperchargeBowAbility();
+        return new SuperchargeAbility();
     }
 }

@@ -2,8 +2,8 @@ package cjs.DF_Plugin.upgrade.specialability.impl;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.settings.GameConfigManager;
+import cjs.DF_Plugin.upgrade.UpgradeManager;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
-import cjs.DF_Plugin.settings.ConfigKeys;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -16,7 +16,8 @@ import org.bukkit.metadata.FixedMetadataValue;
 
 public class LaserShotAbility implements ISpecialAbility {
 
-    private static final String LASER_SHOT_LEVEL_KEY = "laser_shot_level";
+    // 레이저 샷으로 인한 속도 증가량을 화살에 기록하기 위한 키
+    private static final String LASER_SHOT_VELOCITY_KEY = "laser_shot_velocity_multiplier";
 
     @Override
     public String getInternalName() {
@@ -35,7 +36,7 @@ public class LaserShotAbility implements ISpecialAbility {
 
     @Override
     public double getCooldown() {
-        return 0; // This ability is passive or level-gated, no active cooldown.
+        return 0; // 이 능력은 10강 전용 패시브이므로, 별도의 쿨다운이 없습니다.
     }
 
     @Override
@@ -44,60 +45,39 @@ public class LaserShotAbility implements ISpecialAbility {
             return;
         }
 
-        int level = DF_Main.getInstance().getUpgradeManager().getUpgradeLevel(item);
-        GameConfigManager settings = DF_Main.getInstance().getGameConfigManager();
-        int requiredLevel = settings.getConfig().getInt(ConfigKeys.LASER_SHOT_REQUIRED_LEVEL, 10);
-
-        // 화살에 강화 레벨을 저장하여, 명중 시 정확한 피해를 계산하도록 합니다.
-        if (level > 0) {
-            arrow.setMetadata(LASER_SHOT_LEVEL_KEY, new FixedMetadataValue(DF_Main.getInstance(), level));
-        }
+        UpgradeManager upgradeManager = DF_Main.getInstance().getUpgradeManager();
+        GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+        int level = upgradeManager.getUpgradeLevel(item);
+        int requiredLevel = configManager.getConfig().getInt("upgrade.special-abilities.laser_shot.details.required-level", 10);
 
         if (level >= requiredLevel) {
-            double velocityMultiplier = settings.getConfig().getDouble(ConfigKeys.LASER_SHOT_VELOCITY_MULTIPLIER, 3.0);
+            double velocityMultiplier = configManager.getConfig().getDouble("upgrade.special-abilities.laser_shot.details.velocity-multiplier", 3.0);
             arrow.setVelocity(arrow.getVelocity().multiply(velocityMultiplier));
+            // 속도 증가량을 메타데이터에 저장하여, 피격 시 대미지를 보정하는 데 사용합니다.
+            arrow.setMetadata(LASER_SHOT_VELOCITY_KEY, new FixedMetadataValue(DF_Main.getInstance(), velocityMultiplier));
         }
     }
 
     @Override
     public void onDamageByEntity(EntityDamageByEntityEvent event, Player player, ItemStack item) {
+        // 이 능력은 공격자(player)의 무기에서 발동됩니다.
         if (!(event.getDamager() instanceof Arrow arrow) || !(event.getEntity() instanceof LivingEntity target)) {
             return;
         }
 
-        // 발사 시 화살에 저장된 레벨 정보를 가져옵니다.
-        if (!arrow.hasMetadata(LASER_SHOT_LEVEL_KEY)) {
+        // 이 화살이 '레이저 샷'으로 발사된 것인지 확인합니다.
+        if (!arrow.hasMetadata(LASER_SHOT_VELOCITY_KEY)) {
             return;
         }
 
-        int level = arrow.getMetadata(LASER_SHOT_LEVEL_KEY).get(0).asInt();
-        if (level <= 0) return;
+        // 1. 속도 증가로 인해 비정상적으로 증폭된 기본 대미지를 원래대로 보정합니다.
+        double velocityMultiplier = arrow.getMetadata(LASER_SHOT_VELOCITY_KEY).get(0).asDouble();
+        double originalBaseDamage = event.getDamage() / velocityMultiplier;
+        event.setDamage(originalBaseDamage);
 
-        GameConfigManager settings = DF_Main.getInstance().getGameConfigManager();
-
-        // 1. 레벨 비례 추가 데미지 계산
-        double damagePerLevel = settings.getConfig().getDouble(ConfigKeys.LASER_SHOT_PASSIVE_DAMAGE, 0.5);
-        double passiveBonusDamage = level * damagePerLevel;
-
-        // 2. 속도 증가로 인한 기본 데미지 증폭을 보정하고, 패시브 데미지를 더합니다.
-        int requiredLevel = settings.getConfig().getInt(ConfigKeys.LASER_SHOT_REQUIRED_LEVEL, 10);
-        double finalDamage;
-
-        if (level >= requiredLevel) {
-            // 속도가 증폭된 경우, 기본 데미지를 원래대로 되돌립니다.
-            double velocityMultiplier = settings.getConfig().getDouble(ConfigKeys.LASER_SHOT_VELOCITY_MULTIPLIER, 3.0);
-            double originalBaseDamage = event.getDamage() / velocityMultiplier;
-            finalDamage = originalBaseDamage + passiveBonusDamage;
-        } else {
-            // 속도 증폭이 없었으므로, 기존 데미지에 패시브 보너스만 더합니다.
-            finalDamage = event.getDamage() + passiveBonusDamage;
-        }
-        event.setDamage(finalDamage);
-
-        // 3. Special effect at required level
-        if (level >= requiredLevel) {
-            int glowDuration = (int) (settings.getConfig().getDouble(ConfigKeys.LASER_SHOT_GLOW_DURATION, 10) * 20);
-            target.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, glowDuration, 0));
-        }
+        // 2. 10강 전용 발광 효과를 부여합니다.
+        GameConfigManager configManager = DF_Main.getInstance().getGameConfigManager();
+        int glowDuration = configManager.getConfig().getInt("upgrade.special-abilities.laser_shot.details.glow-duration-seconds", 10);
+        target.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, glowDuration * 20, 0, true, false));
     }
 }

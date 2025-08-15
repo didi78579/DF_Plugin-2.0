@@ -3,53 +3,48 @@ package cjs.DF_Plugin.events.supplydrop;
 import cjs.DF_Plugin.DF_Main;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 
 public class AltarInteractionListener implements Listener {
 
-    private final SupplyDropManager supplyDropManager;
+    private final DF_Main plugin;
 
     public AltarInteractionListener(DF_Main plugin) {
-        this.supplyDropManager = plugin.getSupplyDropManager();
+        this.plugin = plugin;
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent event) {
-        Block block = event.getBlock();
-        if (!supplyDropManager.isAltarBlock(block.getLocation())) return;
-
-        event.setCancelled(true); // 기본적으로 파괴 방지
-
-        if (block.getType() == Material.DRAGON_EGG) {
-            supplyDropManager.startEggBreak(event.getPlayer());
-        } else {
-            event.getPlayer().sendMessage("§c이 제단은 파괴할 수 없습니다.");
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
-
-        Block block = event.getClickedBlock();
-        if (block.getType() == Material.DRAGON_EGG && supplyDropManager.isAltarBlock(block.getLocation())) {
-            event.setCancelled(true); // 알 우클릭(텔레포트) 방지
-            event.getPlayer().sendMessage("§c알을 우클릭할 수 없습니다. 파괴하여 보상을 획득하세요.");
+    @EventHandler
+    public void onBlockPlace(BlockPlaceEvent event) {
+        // SupplyDropManager에서 제단 주변인지 확인하여 블록 설치를 막습니다.
+        if (plugin.getSupplyDropManager().isProtectedZone(event.getBlockPlaced().getLocation())) {
+            event.getPlayer().sendMessage("§c[보급] §f제단 위에는 블록을 설치할 수 없습니다.");
+            event.setCancelled(true);
         }
     }
 
     @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        if (event.getFrom().distanceSquared(event.getTo()) > 0.01) {
-            supplyDropManager.cancelEggBreak(event.getPlayer());
+    public void onBlockBreak(BlockBreakEvent event) {
+        // SupplyDropManager에 저장된 제단 블록 정보와 대조하여 파괴를 막습니다.
+        if (plugin.getSupplyDropManager().isAltarBlock(event.getBlock().getLocation())) {
+            event.getPlayer().sendMessage("§c[보급] §f이 제단은 파괴할 수 없습니다.");
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        // 알 우클릭(텔레포트) 및 좌클릭 상호작용을 막습니다.
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.LEFT_CLICK_BLOCK) return;
+        if (event.getClickedBlock() == null || event.getClickedBlock().getType() != Material.DRAGON_EGG) return;
+
+        Location eggLoc = plugin.getSupplyDropManager().getAltarLocation();
+        if (eggLoc != null && eggLoc.equals(event.getClickedBlock().getLocation())) {
+            event.setCancelled(true);
         }
     }
 }

@@ -1,7 +1,7 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
 import cjs.DF_Plugin.DF_Main;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.DamageNegationAbility;
 import org.bukkit.Material;
@@ -13,11 +13,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.List;
 import java.util.UUID;
 
-public class ChestplateProfile implements IWeaponProfile {
+public class ChestplateProfile implements IUpgradeableProfile {
+    private static final String ATTRIBUTE_NAME = "upgrade.health";
+
     @Override
     public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
-        final String ATTRIBUTE_NAME = "upgrade.health";
-
         // 1. 아이템의 모든 관련 속성을 초기화합니다.
         meta.removeAttributeModifier(Attribute.GENERIC_ARMOR);
         meta.removeAttributeModifier(Attribute.GENERIC_ARMOR_TOUGHNESS);
@@ -28,7 +28,7 @@ public class ChestplateProfile implements IWeaponProfile {
         applyBaseArmorAttributes(item.getType(), meta);
 
         // 3. 새로운 강화 속성(체력)을 계산하고 적용합니다.
-        double valuePerLevel = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.attribute-bonuses.chestplate.health-per-level", 0.0);
+        double valuePerLevel = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.generic-bonuses.chestplate.health-per-level", 0.0);
         double totalValue = valuePerLevel * level;
         if (totalValue > 0) {
             AttributeModifier mod = new AttributeModifier(UUID.randomUUID(), ATTRIBUTE_NAME, totalValue, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlotGroup.CHEST);

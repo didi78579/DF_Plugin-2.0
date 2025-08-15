@@ -101,8 +101,12 @@ public class DFTabCompleter implements TabCompleter {
     private void handleAdminTabComplete(CommandSender sender, String[] subArgs, List<String> suggestions) {
         if (!sender.hasPermission("df.admin")) return;
 
-        if (subArgs.length == 1) {
-            suggestions.addAll(Arrays.asList("gamemode", "settings", "set", "weapon", "clan", "register", "controlender", "unban", "magicstone"));        } else if (subArgs.length >= 2) {
+        if (subArgs.length == 1) { // 어드민 명령어 1단계
+            suggestions.addAll(Arrays.asList(
+                    "gamemode", "settings", "set", "getweapon", "clan",
+                    "register", "controlender", "unban", "game", "getitem", "supplydrop"
+            ));
+        } else if (subArgs.length >= 2) { // 어드민 명령어 2단계 이상
             String adminSubCommand = subArgs[0].toLowerCase();
             String[] adminSubArgs = Arrays.copyOfRange(subArgs, 1, subArgs.length);
             switch (adminSubCommand) {
@@ -112,11 +116,21 @@ public class DFTabCompleter implements TabCompleter {
                 case "settings":
                     handleSettingsTabComplete(adminSubArgs, suggestions);
                     break;
-                case "weapon":
-                    handleAdminWeaponTabComplete(adminSubArgs, suggestions);
+                case "getweapon":
+                    handleAdminGetWeaponTabComplete(adminSubArgs, suggestions);
                     break;
                 case "clan":
                     handleAdminClanTabComplete(adminSubArgs, suggestions);
+                    break;
+                case "controlender":
+                    if (adminSubArgs.length == 1) {
+                        suggestions.addAll(Arrays.asList("open", "openafter", "close"));
+                    }
+                    break;
+                case "game":
+                    if (adminSubArgs.length == 1) {
+                        suggestions.addAll(Arrays.asList("start", "stop"));
+                    }
                     break;
                 case "unban": {
                     plugin.getPlayerDeathManager().getDeadPlayers().keySet().forEach(uuid -> {
@@ -127,11 +141,25 @@ public class DFTabCompleter implements TabCompleter {
                     });
                     break;
                 }
+                case "getitem":
+                    handleAdminGetItemTabComplete(adminSubArgs, suggestions);
+                    break;
+                case "supplydrop":
+                    if (adminSubArgs.length == 1) {
+                        suggestions.add("start");
+                    }
+                    break;
             }
         }
     }
 
-    private void handleAdminWeaponTabComplete(String[] subArgs, List<String> suggestions) {
+    private void handleAdminGetItemTabComplete(String[] subArgs, List<String> suggestions) {
+        if (subArgs.length == 1) {
+            suggestions.addAll(Arrays.asList("main_core", "aux_core", "master_compass", "upgrade_stone", "magic_stone", "return_scroll"));
+        }
+    }
+
+    private void handleAdminGetWeaponTabComplete(String[] subArgs, List<String> suggestions) {
         if (subArgs.length == 1) {
             // 강화 가능한 아이템 목록 제안 (최신 ProfileRegistry 사용)
             suggestions.addAll(
@@ -146,16 +174,16 @@ public class DFTabCompleter implements TabCompleter {
     }
 
     private void handleAdminClanTabComplete(String[] subArgs, List<String> suggestions) {
-        if (subArgs.length == 1) {
-            suggestions.addAll(Arrays.asList("confirm", "finalconfirm", "cancel"));
-        } else if (subArgs.length == 2) {
+        if (subArgs.length == 1) { // add, remove
+            suggestions.addAll(Arrays.asList("add", "remove"));
+        } else if (subArgs.length == 2) { // <플레이어>
             // 온라인 플레이어 이름 제안
             suggestions.addAll(
                     Bukkit.getOnlinePlayers().stream()
                             .map(Player::getName)
                             .collect(Collectors.toList())
             );
-        } else if (subArgs.length == 3 && "add".equalsIgnoreCase(subArgs[1])) {
+        } else if (subArgs.length == 3 && "add".equalsIgnoreCase(subArgs[0])) { // add <플레이어> <클랜>
             suggestions.addAll(plugin.getClanManager().getClanNames());
         }
     }

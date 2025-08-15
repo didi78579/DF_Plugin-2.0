@@ -21,7 +21,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GrapplingHookAbility implements ISpecialAbility {
 
-    private static final int MAX_CHARGES = 4;
     // 플레이어별로 고정된 훅의 위치를 저장합니다.
     private static final Map<UUID, Location> latchedHooks = new ConcurrentHashMap<>();
 
@@ -43,7 +42,11 @@ public class GrapplingHookAbility implements ISpecialAbility {
     @Override
     public double getCooldown() {
         // 이 쿨다운은 모든 충전량을 소모했을 때만 적용됩니다.
-        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.ability-cooldowns.grappling_hook", 120.0);    }
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.grappling_hook.cooldown", 120.0);    }
+    @Override
+    public int getMaxCharges() {
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getInt("upgrade.special-abilities.grappling_hook.charges", 4);
+    }
 
     @Override
     public void onPlayerInteract(PlayerInteractEvent event, Player player, ItemStack item) {
@@ -54,21 +57,27 @@ public class GrapplingHookAbility implements ISpecialAbility {
             return;
         }
 
-        // 쿨다운 중이거나 충전량이 없으면 발사할 수 없습니다.
         SpecialAbilityManager manager = DF_Main.getInstance().getSpecialAbilityManager();
-        if (manager.isAbilityOnCooldown(player, this, item)) {
-            return; // ActionBarManager가 쿨다운을 표시합니다.
+
+        // 1. 전체 쿨다운 상태인지 확인합니다.
+        long remainingMillis = manager.getRemainingCooldown(player, this, item);
+        if (remainingMillis > 0) {
+            // 쿨다운 중일 때는 액션바 매니저가 주기적으로 상태를 표시하므로, 여기서는 별도의 메시지를 보내지 않습니다.
+            return;
         }
+
+        // 2. 남은 충전 횟수가 있는지 확인합니다.
         SpecialAbilityManager.ChargeInfo chargeInfo = manager.getChargeInfo(player, this);
-        int currentCharges = (chargeInfo != null) ? chargeInfo.current() : MAX_CHARGES;
+        int currentCharges = (chargeInfo != null) ? chargeInfo.current() : this.getMaxCharges();
         if (currentCharges <= 0) {
+            // 충전이 필요할 때도 액션바 매니저가 상태를 표시하므로, 별도의 메시지를 보내지 않습니다.
             return;
         }
 
         // 그래플링 훅 발사 시도
         Location eyeLocation = player.getEyeLocation();
         Vector direction = eyeLocation.getDirection();
-        double maxDistance = 30.0;
+        double maxDistance = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.grappling_hook.details.range", 30.0);
 
         Location targetLocation = findTargetLocation(eyeLocation, direction, maxDistance);
         if (targetLocation == null) {
@@ -90,23 +99,13 @@ public class GrapplingHookAbility implements ISpecialAbility {
             return;
         }
 
-        Location targetLocation = latchedHooks.remove(player.getUniqueId());
-        if (targetLocation == null) return;
-
-        // 그래플링 실행
-        performGrappling(player, targetLocation);
-
-        // 충전량 및 쿨다운 처리
         SpecialAbilityManager manager = DF_Main.getInstance().getSpecialAbilityManager();
-        SpecialAbilityManager.ChargeInfo chargeInfo = manager.getChargeInfo(player, this);
-        int currentCharges = (chargeInfo != null) ? chargeInfo.current() : MAX_CHARGES;
 
-        currentCharges--;
-        manager.setChargeInfo(player, this, currentCharges, MAX_CHARGES);
-
-        if (currentCharges <= 0) {
-            manager.setCooldown(player, this, item);
-            manager.removeChargeInfo(player, this);
+        // 능력 사용을 시도합니다. tryUseAbility가 쿨다운, 충전량, 액션바 메시지를 모두 처리합니다.
+        if (manager.tryUseAbility(player, this, item)) {
+            Location targetLocation = latchedHooks.remove(player.getUniqueId());
+            if (targetLocation == null) return; // 안전 장치
+            performGrappling(player, targetLocation);
         }
     }
 
@@ -128,7 +127,8 @@ public class GrapplingHookAbility implements ISpecialAbility {
         // 당기기 시작 사운드 ("낚시찌 던지기")
         player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 0.8f);
 
-        Vector velocity = targetLocation.toVector().subtract(player.getLocation().toVector()).normalize().multiply(2.5);
+        double pullStrength = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.grappling_hook.details.pull-strength", 2.5);
+        Vector velocity = targetLocation.toVector().subtract(player.getLocation().toVector()).normalize().multiply(pullStrength);
         player.setVelocity(velocity);
         // 이동 중 사운드 ("블레이즈 화염구")
         player.playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 0.8f, 1.2f);

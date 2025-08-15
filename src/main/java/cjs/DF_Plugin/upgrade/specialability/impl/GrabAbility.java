@@ -1,14 +1,11 @@
 package cjs.DF_Plugin.upgrade.specialability.impl;
 
 import cjs.DF_Plugin.DF_Main;
-import cjs.DF_Plugin.actionbar.ActionBarManager;
-import cjs.DF_Plugin.settings.ConfigKeys;
 import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
 import org.bukkit.Location;
 import org.bukkit.Sound;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerFishEvent;
@@ -34,8 +31,8 @@ public class GrabAbility implements ISpecialAbility {
 
     @Override
     public double getCooldown() {
-        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble(ConfigKeys.GRAB_COOLDOWN, 60.0);    }
-
+        return DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.grab.cooldown", 60.0);
+    }
     @Override
     public void onPlayerFish(PlayerFishEvent event, Player player, ItemStack item) {
         SpecialAbilityManager manager = DF_Main.getInstance().getSpecialAbilityManager();
@@ -46,8 +43,8 @@ public class GrabAbility implements ISpecialAbility {
             if (event.getHook() != null) {
                 Vector velocity = event.getHook().getVelocity();
 
-                double velocityMultiplier = config.getConfig().getDouble(ConfigKeys.GRAB_CAST_VELOCITY_MULTIPLIER, 3.0);
-                double maxVelocity = config.getConfig().getDouble(ConfigKeys.GRAB_CAST_MAX_VELOCITY, 10.0);
+                double velocityMultiplier = config.getConfig().getDouble("upgrade.special-abilities.grab.details.cast-velocity-multiplier", 3.0);
+                double maxVelocity = config.getConfig().getDouble("upgrade.special-abilities.grab.details.cast-max-velocity", 10.0);
 
                 // 속도를 증폭시키되, 최대치를 넘지 않도록 제한합니다.
                 velocity = velocity.normalize().multiply(Math.min(velocity.length() * velocityMultiplier, maxVelocity));
@@ -60,20 +57,16 @@ public class GrabAbility implements ISpecialAbility {
         if (event.getState() == PlayerFishEvent.State.CAUGHT_ENTITY) {
             if (DF_Main.getInstance().getUpgradeManager().getUpgradeLevel(item) < 10) return;
 
-            if (manager.isAbilityOnCooldown(player, this, item)) {
-                long secondsLeft = (manager.getRemainingCooldown(player, this, item) + 999) / 1000;
-                ActionBarManager.sendActionBar(player, String.format("%s §e%d초", this.getDisplayName(), secondsLeft));
-                return;
-            }
+            // 능력 사용을 시도합니다. 쿨다운 중이거나 다른 이유로 사용할 수 없다면, 여기서 중단됩니다.
+            if (!manager.tryUseAbility(player, this, item)) return;
 
+            // tryUseAbility가 성공적으로 호출되면, 쿨다운은 이미 적용된 상태입니다.
             if (!(event.getCaught() instanceof LivingEntity livingTarget)) return;
 
-            manager.setCooldown(player, this, item);
-
             // 2단계 끌어오기 로직
-            double upwardForceValue = config.getConfig().getDouble(ConfigKeys.GRAB_UPWARD_FORCE, 1.2);
-            double pullStrength = config.getConfig().getDouble(ConfigKeys.GRAB_PULL_STRENGTH, 2.5);
-            double maxPullStrength = config.getConfig().getDouble(ConfigKeys.GRAB_MAX_PULL_STRENGTH, 10.0);
+            double upwardForceValue = config.getConfig().getDouble("upgrade.special-abilities.grab.details.upward-force", 1.2);
+            double pullStrength = config.getConfig().getDouble("upgrade.special-abilities.grab.details.pull-strength", 2.5);
+            double maxPullStrength = config.getConfig().getDouble("upgrade.special-abilities.grab.details.max-pull-strength", 10.0);
 
             // 1. 대상 위로 띄우기
             livingTarget.setVelocity(new Vector(0, upwardForceValue, 0));

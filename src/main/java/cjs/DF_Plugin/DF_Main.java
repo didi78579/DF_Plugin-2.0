@@ -1,23 +1,29 @@
 package cjs.DF_Plugin;
 
-import cjs.DF_Plugin.actionbar.ActionBarManager;
+import cjs.DF_Plugin.upgrade.specialability.passive.BootsPassiveListener;
+import cjs.DF_Plugin.util.ActionBarManager;
 import cjs.DF_Plugin.clan.Clan;
 import cjs.DF_Plugin.clan.ClanManager;
+import cjs.DF_Plugin.clan.nether.ClanNetherListener;
 import cjs.DF_Plugin.command.DFCommand;
 import cjs.DF_Plugin.command.ItemNameCommand;
 import cjs.DF_Plugin.command.DFTabCompleter;
 import cjs.DF_Plugin.command.PylonStorageCommand;
 import cjs.DF_Plugin.enchant.EnchantManager;
+import cjs.DF_Plugin.enchant.EnchantmentRuleListener;
 import cjs.DF_Plugin.events.game.GameStartManager;
+import cjs.DF_Plugin.events.supplydrop.SupplyDropScheduler;
 import cjs.DF_Plugin.events.supplydrop.SupplyDropManager;
 import cjs.DF_Plugin.enchant.EnchantListener;
 import cjs.DF_Plugin.items.ItemNameManager;
 import cjs.DF_Plugin.items.RecipeManager;
 import cjs.DF_Plugin.items.SpecialItemListener;
-import cjs.DF_Plugin.listener.*;
-import cjs.DF_Plugin.offline.OfflinePlayerManager;
+import cjs.DF_Plugin.player.offline.OfflinePlayerManager;
+import cjs.DF_Plugin.player.PlayerChatListener;
+import cjs.DF_Plugin.player.PlayerJoinListener;
 import cjs.DF_Plugin.player.PlayerRegistryManager;
 import cjs.DF_Plugin.player.death.PlayerDeathManager;
+import cjs.DF_Plugin.player.stats.PlayerEvalGuiManager;
 import cjs.DF_Plugin.player.stats.StatsListener;
 import cjs.DF_Plugin.player.stats.StatsManager;
 import cjs.DF_Plugin.pylon.PylonManager;
@@ -29,125 +35,203 @@ import cjs.DF_Plugin.pylon.beacongui.BeaconGUIListener;
 import cjs.DF_Plugin.settings.GameConfigManager;
 import cjs.DF_Plugin.settings.GameModeManager;
 import cjs.DF_Plugin.upgrade.UpgradeListener;
+import cjs.DF_Plugin.upgrade.specialability.DurabilityListener;
 import cjs.DF_Plugin.upgrade.UpgradeManager;
-import cjs.DF_Plugin.upgrade.specialability.CooldownStorage;
+import cjs.DF_Plugin.upgrade.specialability.passive.BowPassiveListener;
+import cjs.DF_Plugin.upgrade.specialability.passive.TridentPassiveListener;
+import cjs.DF_Plugin.upgrade.specialability.passive.CrossbowPassiveListener;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityListener;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
-import cjs.DF_Plugin.world.WorldManager;
-import cjs.DF_Plugin.world.WorldLoadListener;
+import cjs.DF_Plugin.world.*;
+import cjs.DF_Plugin.world.nether.NetherManager;
 import cjs.DF_Plugin.events.end.EndEventManager;
 import cjs.DF_Plugin.events.end.EndEventListener;
 import cjs.DF_Plugin.events.supplydrop.AltarInteractionListener;
-import cjs.DF_Plugin.world.nether.NetherManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class DF_Main extends JavaPlugin {
 
     private static DF_Main instance;
 
+    // --- Core & System Managers ---
+    private GameConfigManager gameConfigManager;
+    private GameModeManager gameModeManager;
+    private WorldManager worldManager;
+    private NetherManager netherManager;
+    private RecipeManager recipeManager;
+    private ItemNameManager itemNameManager;
+    private EnchantManager enchantManager;
+
+    // --- Feature Managers ---
     private ClanManager clanManager;
     private PylonManager pylonManager;
     private UpgradeManager upgradeManager;
-    private WorldManager worldManager;
+    private SpecialAbilityManager specialAbilityManager;
+    private ActionBarManager actionBarManager;
+
+    // --- Player Data & Interaction Managers ---
     private PlayerRegistryManager playerRegistryManager;
     private PlayerDeathManager playerDeathManager;
     private StatsManager statsManager;
+    private PlayerEvalGuiManager playerEvalGuiManager;
     private OfflinePlayerManager offlinePlayerManager;
-    private SpecialAbilityManager specialAbilityManager;
-    private ActionBarManager actionBarManager;
-    private CooldownStorage cooldownStorage;
-    private GameConfigManager gameConfigManager;
-    private RecipeManager recipeManager;
-    private GameModeManager gameModeManager;
-    private EnchantManager enchantManager;
+
+    // --- Event Managers ---
     private EndEventManager endEventManager;
-    private NetherManager netherManager;
     private GameStartManager gameStartManager;
     private SupplyDropManager supplyDropManager;
-    private ItemNameManager itemNameManager;
+    private SupplyDropScheduler supplyDropScheduler;
 
     @Override
     public void onEnable() {
         instance = this;
 
-        getLogger().info("Initializing managers for DarkForest 2.0...");
+        saveDefaultConfig();
 
-        // 설정 및 데이터 저장소 초기화
-        this.gameConfigManager = new GameConfigManager(this);
-        this.cooldownStorage = new CooldownStorage(this);
-        CooldownStorage.LoadedData loadedData = cooldownStorage.load();
+        getLogger().info("Enabling DarkForest 2.0...");
 
-        // 핵심 매니저 초기화
-        this.gameModeManager = new GameModeManager(this);
-        this.recipeManager = new RecipeManager(this);
-        this.clanManager = new ClanManager(this);
-        this.pylonManager = new PylonManager(this);
-        this.worldManager = new WorldManager(this);
-        this.playerRegistryManager = new PlayerRegistryManager(this);
-        this.playerDeathManager = new PlayerDeathManager(this);
-        this.statsManager = new StatsManager(this);
-        this.offlinePlayerManager = new OfflinePlayerManager(this);
-        this.enchantManager = new EnchantManager(this);
-        this.endEventManager = new EndEventManager(this);
-        this.netherManager = new NetherManager(this);
-        this.gameStartManager = new GameStartManager(this);
-        this.supplyDropManager = new SupplyDropManager(this);
-        this.itemNameManager = new ItemNameManager(this);
+        initializeManagers();
 
-        // 강화 시스템 매니저 초기화
-        this.specialAbilityManager = new SpecialAbilityManager(this, loadedData.cooldowns(), loadedData.charges());
-        this.upgradeManager = new UpgradeManager(this);
-        this.actionBarManager = new ActionBarManager(this, this.specialAbilityManager);
+        // 게임 모드 설정을 config.yml에 적용합니다. 이 작업은 리스너 등록 전에 이루어져야 합니다.
+        this.gameModeManager.applyCurrentMode();
 
-        // 설정 기반 기능 초기화
+        registerCommands();
+        registerListeners();
+        scheduleTasks();
+
+        // 설정 기반 후처리 작업
         this.recipeManager.updateRecipes();
         this.worldManager.applyAllWorldSettings();
 
-        getLogger().info("Managers initialized successfully.");
+        getLogger().info("DarkForest 2.0 plugin has been enabled!");
+    }
 
-        // 커맨드 등록
+    /**
+     * 플러그인에 필요한 모든 관리자(Manager) 클래스를 초기화합니다.
+     * 의존성 순서를 고려하여 핵심 시스템부터 기능, 플레이어 데이터 순으로 로드합니다.
+     */
+    private void initializeManagers() {
+        getLogger().info("Initializing managers...");
+
+        // --- Core & System Managers ---
+        gameConfigManager = new GameConfigManager(this);
+        gameModeManager = new GameModeManager(this);
+        worldManager = new WorldManager(this);
+        netherManager = new NetherManager(this);
+        recipeManager = new RecipeManager(this);
+        itemNameManager = new ItemNameManager(this);
+        enchantManager = new EnchantManager(this);
+
+        // --- Player Data & Interaction Managers ---
+        playerRegistryManager = new PlayerRegistryManager(this);
+        playerDeathManager = new PlayerDeathManager(this);
+        statsManager = new StatsManager(this);
+        playerEvalGuiManager = new PlayerEvalGuiManager(this);
+        offlinePlayerManager = new OfflinePlayerManager(this);
+
+        // --- Feature Managers (can depend on core managers) ---
+        clanManager = new ClanManager(this);
+        pylonManager = new PylonManager(this);
+
+        // Upgrade System
+        specialAbilityManager = new SpecialAbilityManager(this);
+        upgradeManager = new UpgradeManager(this);
+        actionBarManager = new ActionBarManager(this, specialAbilityManager);
+
+        // --- Event Managers ---
+        endEventManager = new EndEventManager(this);
+        gameStartManager = new GameStartManager(this);
+        supplyDropManager = new SupplyDropManager(this);
+
+        // 모든 매니저가 초기화된 후, UpgradeManager의 프로필에 의존하는 특수 능력들을 등록합니다.
+        specialAbilityManager.registerAbilities();
+
+        getLogger().info("Managers initialized successfully.");
+    }
+
+    /**
+     * 플러그인에서 사용하는 모든 명령어를 등록합니다.
+     */
+    private void registerCommands() {
+        getLogger().info("Registering commands...");
         DFCommand dfCommand = new DFCommand(this);
         getCommand("df").setExecutor(dfCommand);
         getCommand("df").setTabCompleter(new DFTabCompleter(this));
         getCommand("itemname").setExecutor(new ItemNameCommand(this));
         getCommand("pylonstorage").setExecutor(new PylonStorageCommand(this));
+    }
 
-        // 이벤트 리스너 등록
-        // 핵심 리스너
-        getServer().getPluginManager().registerEvents(new UpgradeListener(this), this);
-        getServer().getPluginManager().registerEvents(new SpecialAbilityListener(this), this);
-        getServer().getPluginManager().registerEvents(new BeaconInteractionListener(this), this);
-        getServer().getPluginManager().registerEvents(new PylonItemListener(), this);
-        getServer().getPluginManager().registerEvents(new PlayerChatListener(this), this);
+    /**
+     * 모든 이벤트 리스너를 기능별로 그룹화하여 등록합니다.
+     */
+    private void registerListeners() {
+        getLogger().info("Registering event listeners...");
+
+        // --- Core Player & World Listeners ---
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
-        getServer().getPluginManager().registerEvents(new BeaconGUIListener(this, this.pylonManager.getGuiManager()), this);
-        getServer().getPluginManager().registerEvents(new StatsListener(this), this);
-        getServer().getPluginManager().registerEvents(new SpecialItemListener(this), this);
-        getServer().getPluginManager().registerEvents(new ReturnScrollListener(this.pylonManager.getScrollManager()), this);
-
-        // 매니저 및 모듈 리스너
-        getServer().getPluginManager().registerEvents(this.playerRegistryManager, this);
-        getServer().getPluginManager().registerEvents(this.playerDeathManager, this);
-        getServer().getPluginManager().registerEvents(this.pylonManager.getReconManager(), this);
-
-        // 게임 규칙 및 월드 리스너
+        getServer().getPluginManager().registerEvents(new PlayerChatListener(this), this);
+        getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
+        this.supplyDropScheduler = new SupplyDropScheduler(this);
+        getServer().getPluginManager().registerEvents(this.supplyDropScheduler, this);
+        getServer().getPluginManager().registerEvents(new WorldLoadListener(this), this);
         getServer().getPluginManager().registerEvents(new GameRuleListener(this), this);
         getServer().getPluginManager().registerEvents(new BossMobListener(this), this);
-        getServer().getPluginManager().registerEvents(new BossDeathListener(this), this);
-        getServer().getPluginManager().registerEvents(new EnchantmentRuleListener(this), this);
-        getServer().getPluginManager().registerEvents(new PylonProtectionListener(this), this);
-        getServer().getPluginManager().registerEvents(new EndEventListener(this), this);
-        getServer().getPluginManager().registerEvents(new EnchantListener(this), this);
-        getServer().getPluginManager().registerEvents(new ClanNetherListener(this), this);
-        getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this), this);
-        getServer().getPluginManager().registerEvents(new DayNightListener(this), this);
-        getServer().getPluginManager().registerEvents(new AltarInteractionListener(this), this);
-        getServer().getPluginManager().registerEvents(new WorldLoadListener(this), this);
-        
-        // 선물상자 자동 리필 작업 시작 (1분마다 확인)
-        new GiftBoxRefillTask(this).runTaskTimer(this, 20L * 60, 20L * 60);
 
-        // 서버 로드가 완료된 후 파일런을 로드하여 월드 누락 문제를 방지합니다.
+        // --- 시스템 토글에 따라 리스너를 조건부로 등록 ---
+
+        if (gameConfigManager.isUpgradeSystemEnabled()) {
+            getLogger().info("강화 시스템이 활성화되었습니다. 관련 리스너를 등록합니다.");
+            // Upgrade & Enchant
+            getServer().getPluginManager().registerEvents(new UpgradeListener(this), this);
+            getServer().getPluginManager().registerEvents(new SpecialAbilityListener(this), this);
+            getServer().getPluginManager().registerEvents(new TridentPassiveListener(this), this);
+            getServer().getPluginManager().registerEvents(new CrossbowPassiveListener(this), this);
+            getServer().getPluginManager().registerEvents(new BootsPassiveListener(this), this);
+            getServer().getPluginManager().registerEvents(new BowPassiveListener(this), this);
+            getServer().getPluginManager().registerEvents(new EnchantListener(this), this);
+            getServer().getPluginManager().registerEvents(new EnchantmentRuleListener(this), this);
+            getServer().getPluginManager().registerEvents(new DurabilityListener(this), this);
+        }
+
+        if (gameConfigManager.isPylonSystemEnabled()) {
+            getLogger().info("파일런 시스템이 활성화되었습니다. 관련 리스너를 등록합니다.");
+            // Pylon & Clan
+            getServer().getPluginManager().registerEvents(new BeaconInteractionListener(this), this);
+            getServer().getPluginManager().registerEvents(new BeaconGUIListener(this, this.pylonManager.getGuiManager()), this);
+            getServer().getPluginManager().registerEvents(new PylonItemListener(), this);
+            getServer().getPluginManager().registerEvents(new PylonProtectionListener(this), this);
+            getServer().getPluginManager().registerEvents(new ReturnScrollListener(this.pylonManager.getScrollManager()), this);
+            getServer().getPluginManager().registerEvents(new ClanNetherListener(this), this);
+        }
+
+        if (gameConfigManager.isEventSystemEnabled()) {
+            getLogger().info("이벤트 시스템이 활성화되었습니다. 관련 리스너를 등록합니다.");
+            // Game Events
+            getServer().getPluginManager().registerEvents(new EndEventListener(this), this);
+            getServer().getPluginManager().registerEvents(new AltarInteractionListener(this), this);
+        }
+
+        // Item & Stats
+        getServer().getPluginManager().registerEvents(new SpecialItemListener(this), this);
+        getServer().getPluginManager().registerEvents(new StatsListener(this), this);
+
+        // --- Managers as Listeners (self-registering managers are not listed here) ---
+        getServer().getPluginManager().registerEvents(this.playerRegistryManager, this);
+        getServer().getPluginManager().registerEvents(playerDeathManager, this);
+        getServer().getPluginManager().registerEvents(this.pylonManager.getReconManager(), this);
+    }
+
+    /**
+     * 반복 및 지연 실행이 필요한 모든 작업을 스케줄러에 등록합니다.
+     */
+    private void scheduleTasks() {
+        getLogger().info("Scheduling tasks...");
+        if (gameConfigManager.isPylonSystemEnabled()) {
+            // 선물상자 자동 리필 작업 시작 (1분마다 확인)
+            new GiftBoxRefillTask(this).runTaskTimer(this, 20L * 60, 20L * 60);
+        }
+
+        // 서버 로드가 완료된 후 월드 기반 데이터를 로드합니다.
         getServer().getScheduler().runTask(this, () -> {
             if (pylonManager != null) {
                 pylonManager.loadExistingPylons();
@@ -156,21 +240,21 @@ public final class DF_Main extends JavaPlugin {
                 offlinePlayerManager.loadAndVerifyOfflineStands();
             }
         });
-
-        getLogger().info("DarkForest 2.0 plugin has been enabled!");
     }
 
     @Override
     public void onDisable() {
-        // 플레이어 데이터 저장
+        getLogger().info("Disabling DarkForest 2.0...");
+
+        // 모든 플레이어 및 가문 관련 데이터를 안전하게 저장합니다.
         if (this.statsManager != null) {
             this.statsManager.saveStats();
         }
-        // 쿨다운 및 충전 정보 저장
-        if (this.cooldownStorage != null && this.specialAbilityManager != null) {
-            cooldownStorage.save(specialAbilityManager.getCooldownsMap(), specialAbilityManager.getChargesMap());
+        if (specialAbilityManager != null) {
+            specialAbilityManager.saveData();
         }
         if (this.clanManager != null) {
+            // 서버 종료 시 열려있던 가문 창고 및 선물상자 인벤토리를 강제로 저장합니다.
             clanManager.getPylonStorages().forEach((clanName, inventory) -> {
                 Clan clan = clanManager.getClanByName(clanName);
                 if (clan != null) clanManager.getStorageManager().savePylonStorage(clan, inventory);
@@ -192,6 +276,7 @@ public final class DF_Main extends JavaPlugin {
     public PlayerRegistryManager getPlayerRegistryManager() { return playerRegistryManager; }
     public PlayerDeathManager getPlayerDeathManager() { return playerDeathManager; }
     public StatsManager getStatsManager() { return statsManager; }
+    public PlayerEvalGuiManager getPlayerEvalGuiManager() { return playerEvalGuiManager; }
     public WorldManager getWorldManager() { return worldManager; }
     // 강화 시스템 Getter
     public UpgradeManager getUpgradeManager() { return upgradeManager; }
@@ -207,6 +292,7 @@ public final class DF_Main extends JavaPlugin {
     public ItemNameManager getItemNameManager() { return itemNameManager; }
     public GameStartManager getGameStartManager() { return gameStartManager; }
     public SupplyDropManager getSupplyDropManager() { return supplyDropManager; }
+    public SupplyDropScheduler getSupplyDropScheduler() { return supplyDropScheduler; }
 
     public ReconManager getReconManager() {
         return this.pylonManager.getReconManager();

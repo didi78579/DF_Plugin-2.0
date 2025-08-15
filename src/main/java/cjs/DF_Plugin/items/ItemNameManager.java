@@ -2,9 +2,9 @@ package cjs.DF_Plugin.items;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.items.ui.ItemNameUIManager;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.profile.ProfileRegistry;
 import cjs.DF_Plugin.upgrade.UpgradeManager;
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -94,10 +94,10 @@ public class ItemNameManager {
         // 변경된 이름/색상을 적용하고 아이템 로어를 새로고침합니다.
         UpgradeManager upgradeManager = plugin.getUpgradeManager();
         ProfileRegistry profileRegistry = upgradeManager.getProfileRegistry();
-        IWeaponProfile profile = profileRegistry.getProfile(item.getType());
+        IUpgradeableProfile profile = profileRegistry.getProfile(item.getType());
         if (profile != null) {
             int currentLevel = upgradeManager.getUpgradeLevel(item);
-            upgradeManager.setUpgradeLevel(item, profile, currentLevel);
+            upgradeManager.setUpgradeLevel(item, currentLevel);
         }
 
         player.sendMessage("§a아이템 이름과 색상이 성공적으로 적용되었습니다.");
@@ -123,10 +123,10 @@ public class ItemNameManager {
         // 이름/색상 초기화 후 아이템 로어를 새로고침합니다.
         UpgradeManager upgradeManager = plugin.getUpgradeManager();
         ProfileRegistry profileRegistry = upgradeManager.getProfileRegistry();
-        IWeaponProfile profile = profileRegistry.getProfile(item.getType());
+        IUpgradeableProfile profile = profileRegistry.getProfile(item.getType());
         if (profile != null) {
             int currentLevel = upgradeManager.getUpgradeLevel(item);
-            upgradeManager.setUpgradeLevel(item, profile, currentLevel);
+            upgradeManager.setUpgradeLevel(item, currentLevel);
         }
 
         player.sendMessage("§a아이템의 이름과 색상을 초기화했습니다.");

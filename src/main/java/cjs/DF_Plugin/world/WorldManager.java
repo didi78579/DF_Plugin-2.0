@@ -1,4 +1,4 @@
-package cjs.DF_Plugin.world;
+ package cjs.DF_Plugin.world;
 
 import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.clan.Clan;
@@ -53,12 +53,25 @@ public class WorldManager {
         boolean keepInventory = plugin.getGameConfigManager().isWorldRuleKeepInventory();
         boolean locationInfoDisabled = plugin.getGameConfigManager().isWorldRuleLocationInfoDisabled();
         boolean phantomDisabled = plugin.getGameConfigManager().isWorldRulePhantomDisabled();
+        boolean locatorBarDisabled = plugin.getGameConfigManager().isWorldRuleLocatorBarDisabled();
         Difficulty difficulty = plugin.getGameConfigManager().getWorldDifficulty();
 
         world.setGameRule(GameRule.KEEP_INVENTORY, keepInventory);
         world.setGameRule(GameRule.REDUCED_DEBUG_INFO, locationInfoDisabled);
         world.setGameRule(GameRule.DO_INSOMNIA, !phantomDisabled); // 팬텀 생성 여부 (true: 생성, false: 미생성)
         world.setDifficulty(difficulty);
+
+        // 'locatorBar' 게임 규칙은 최신 버전에만 존재하므로, 버전 호환성을 고려하여 적용합니다.
+        try {
+            // Paper API인 GameRule.getByName()을 사용하여 규칙을 찾습니다.
+            @SuppressWarnings("unchecked")
+            GameRule<Boolean> locatorBarRule = (GameRule<Boolean>) GameRule.getByName("locatorBar");
+            if (locatorBarRule != null) {
+                world.setGameRule(locatorBarRule, !locatorBarDisabled);
+            }
+        } catch (NoSuchMethodError e) {
+            // GameRule.getByName()이 없는 구버전 Spigot 환경에서는 이 규칙 적용을 건너뜁니다.
+        }
     }
 
     /**
@@ -147,28 +160,31 @@ public class WorldManager {
      * @param worldName 초기화할 월드 이름 (예: "world_the_end")
      */
     public void resetWorld(String worldName) {
-        World world = Bukkit.getWorld(worldName);
-        if (world == null) {
-            plugin.getLogger().warning("초기화하려는 월드(" + worldName + ")가 로드되지 않았습니다.");
-            return;
+        World world = Bukkit.getWorld(worldName); // 먼저 월드 객체를 가져옵니다.
+
+        // 1. 월드가 현재 로드되어 있다면, 플레이어를 대피시키고 언로드합니다.
+        if (world != null) {
+            // 월드에 있는 모든 플레이어를 안전하게 이동시킵니다.
+            for (Player player : world.getPlayers()) {
+                teleportPlayerToSafety(player);
+            }
+
+            // 월드 언로드
+            if (!Bukkit.unloadWorld(world, false)) {
+                plugin.getLogger().severe("월드(" + worldName + ")를 언로드할 수 없습니다. 초기화에 실패했습니다.");
+                return; // 언로드 실패 시 폴더 삭제를 진행하지 않습니다.
+            }
         }
 
-        // 월드에 있는 모든 플레이어를 안전하게 이동시킵니다.
-        for (Player player : world.getPlayers()) {
-            teleportPlayerToSafety(player);
-        }
-
-        File worldFolder = world.getWorldFolder();
-        if (!Bukkit.unloadWorld(world, false)) {
-            plugin.getLogger().severe("월드(" + worldName + ")를 언로드할 수 없습니다. 초기화에 실패했습니다.");
-            return;
-        }
-
-        try {
-            deleteDirectory(worldFolder);
-            plugin.getLogger().info("월드 폴더(" + worldName + ")를 성공적으로 삭제했습니다. 다음 접근 시 재생성됩니다.");
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "월드 폴더(" + worldName + ") 삭제에 실패했습니다.", e);
+        // 2. 월드가 언로드되었거나 애초에 로드되지 않았더라도, 월드 폴더를 삭제합니다.
+        File worldFolder = new File(Bukkit.getWorldContainer(), worldName);
+        if (worldFolder.exists()) {
+            try {
+                deleteDirectory(worldFolder);
+                plugin.getLogger().info("월드 폴더(" + worldName + ")를 성공적으로 삭제했습니다. 다음 접근 시 재생성됩니다.");
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "월드 폴더(" + worldName + ") 삭제에 실패했습니다.", e);
+            }
         }
     }
 

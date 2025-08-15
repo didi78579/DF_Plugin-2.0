@@ -50,11 +50,10 @@ public class ReconManager implements Listener {
         GameConfigManager config = plugin.getGameConfigManager();
 
         // 1. Check if feature is enabled
-        if (!config.isPylonReconEnabled()) {
+        if (!config.getConfig().getBoolean("pylon.recon-firework.enabled", true)) {
             player.sendMessage(PREFIX + "정찰용 폭죽 기능이 비활성화되어 있습니다.");
             return;
         }
-
         // 2. Check if player is a clan leader
         Clan clan = plugin.getClanManager().getClanByPlayer(player.getUniqueId());
         if (clan == null || !clan.getLeader().equals(player.getUniqueId())) {
@@ -63,7 +62,7 @@ public class ReconManager implements Listener {
         }
 
         // 3. Check cooldown
-        long cooldownMillis = TimeUnit.HOURS.toMillis(config.getPylonReconCooldownHours());
+        long cooldownMillis = TimeUnit.HOURS.toMillis(config.getConfig().getInt("pylon.recon-firework.cooldown-hours", 12));
         long lastUsed = clan.getLastReconFireworkTime();
         if (System.currentTimeMillis() - lastUsed < cooldownMillis) {
             long remainingMillis = cooldownMillis - (System.currentTimeMillis() - lastUsed);
@@ -205,7 +204,7 @@ public class ReconManager implements Listener {
         List<UUID> partyUUIDs = reconParties.remove(leader.getUniqueId());
         if (partyUUIDs == null) return; // 이미 처리된 경우
 
-        int returnMinutes = plugin.getGameConfigManager().getPylonReconReturnMinutes();
+        int returnMinutes = plugin.getGameConfigManager().getConfig().getInt("pylon.recon-firework.return-duration-minutes", 1);
 
         for (UUID memberUUID : partyUUIDs) {
             reconPlayers.put(memberUUID, ReconState.LANDED);

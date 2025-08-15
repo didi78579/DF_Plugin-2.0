@@ -57,6 +57,13 @@ public class PylonProtectionListener implements Listener {
 
         // Case 1: Player is breaking their own clan's pylon (retrieval)
         if (victimClan.equals(attackerClan)) {
+            // 주 파일런 코어는 가문 대표만 회수할 수 있도록 권한을 확인합니다.
+            if (pylonType == PylonType.MAIN_CORE && !victimClan.getLeader().equals(player.getUniqueId())) {
+                player.sendMessage("§c주 파일런 코어는 가문 대표만 회수할 수 있습니다.");
+                event.setCancelled(true);
+                return;
+            }
+
             // 회수 로직을 호출하고, 그 결과에 따라 파괴 이벤트를 처리합니다.
             boolean success = plugin.getPylonManager().getRetrievalManager().handlePylonRetrieval(player, block, victimClan);
             if (!success) {

@@ -1,6 +1,6 @@
 package cjs.DF_Plugin.upgrade.profile.type;
 
-import cjs.DF_Plugin.upgrade.profile.IWeaponProfile;
+import cjs.DF_Plugin.upgrade.profile.IUpgradeableProfile;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.impl.DoubleJumpAbility;
 import org.bukkit.Material;
@@ -12,7 +12,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.List;
 import java.util.UUID;
 
-public class BootsProfile implements IWeaponProfile {
+public class BootsProfile implements IUpgradeableProfile {
     @Override
     public void applyAttributes(org.bukkit.inventory.ItemStack item, ItemMeta meta, int level, List<String> lore) {
         final String ATTRIBUTE_NAME = "upgrade.movement_speed";

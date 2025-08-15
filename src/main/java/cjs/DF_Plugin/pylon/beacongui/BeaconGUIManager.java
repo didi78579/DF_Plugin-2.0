@@ -60,7 +60,7 @@ public class BeaconGUIManager {
         ItemStack giftBox = new ItemStack(Material.CHEST);
         ItemMeta giftMeta = giftBox.getItemMeta();
         giftMeta.setDisplayName("§6선물상자");
-        long cooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getPylonGiftboxCooldownHours());        long timePassed = System.currentTimeMillis() - clan.getLastGiftBoxTime();
+        long cooldownMillis = TimeUnit.HOURS.toMillis(plugin.getGameConfigManager().getConfig().getInt("pylon.giftbox.cooldown-hours", 4));        long timePassed = System.currentTimeMillis() - clan.getLastGiftBoxTime();
         if (timePassed >= cooldownMillis) {
             giftMeta.setLore(Arrays.asList("§a선물이 도착했습니다!", "§7리더만 열 수 있습니다."));
         } else {
@@ -100,7 +100,7 @@ public class BeaconGUIManager {
                     player.closeInventory();
                     return;
                 }
-                plugin.getPylonManager().getStorageManager().openStorage(player);
+                plugin.getClanManager().openPylonStorage(player);
                 break;
             case "clan_nether":
                 if (!configManager.getConfig().getBoolean("pylon.features.clan-nether", true)) {

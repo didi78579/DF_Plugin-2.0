@@ -48,39 +48,30 @@ upgrade:
     '9': { success: 0.50, failure: 0.0, downgrade: 0.0, destroy: 0.50 }
   # 특수 능력 재사용 대기시간 설정
   cooldown:
-    per-weapon-cooldown: true
-  # 각 특수 능력의 기본 재사용 대기시간(초)
-  ability-cooldowns:
-    super_jump: 0.0
-    double_jump: 0.0
-    supercharge: 5.0
-    damage_negation: 30.0
-    laser_shot: 0.0
-    void_riptide: 30.0
-    vampirism: 90.0
-    shield_bash: 150.0
-    stun: 120.0
-    grappling_hook: 120.0
-    grab: 60.0
-    parricide: 60.0
-  # 확률 기반 특수 능력의 발동 확률 설정
-  ability-chances:
-    damage_negation: 0.07 # 7%
-  # 각 특수 능력의 세부 속성 설정
-  ability-attributes:
-    super_jump: { charge-time-seconds: 5.0, jump-velocity: 2.0, dash-velocity: 2.5 }
-    double_jump: { dash-velocity-multiplier: 1.3, dash-y-velocity: 0.5, pvp-cooldown-seconds: 30.0 }
-    supercharge: { charge-time-seconds: 8.0, charged-duration-seconds: 5.0, damage: 20.0, knockback-bonus: 2, passive-max-health-damage-percent-per-level: 1.5, passive-max-health-damage-max-percent: 15.0 }
-    laser_shot: { required-level: 10, velocity-multiplier: 3.0, glow-duration-seconds: 10, passive-damage-per-level: 0.5 }
-    void_riptide: { required-level: 10, riptide-velocity-multiplier: 2.0, spread-radius: 3.0, spread-velocity-multiplier: 0.1, slowness-duration-seconds: 3.0, slowness-level: 2 }
-    vampirism: { health-steal-percent: 40.0, damage-multiplier: 0.5 }
-    shield_bash: { dash-strength: 2.0, shockwave-delay-ticks: 6, shockwave-radius-x: 3.0, shockwave-radius-y: 2.0, shockwave-radius-z: 3.0, launch-strength: 1.2 }
-    stun: { duration-seconds: 1.5 }
-    grappling_hook: { range: 30, pull-strength: 2.5 }
-    grab: { pull-strength: 2.5, cast-velocity-multiplier: 3.0, cast-max-velocity: 10.0, upward-force: 1.2, max-pull-strength: 10.0 }
-    parricide: { shield-cooldown-seconds: 30 }
+
+  # ==================================================================
+  # 특수 능력 설정 (Special Abilities)
+  # charges: 0은 패시브, 1은 1회성 액티브, 2 이상은 충전식 액티브를 의미합니다.
+  # ==================================================================
+  special-abilities:
+    super_jump:       { cooldown: 10.0, charges: 1, details: { charge-time-seconds: 2.0, jump-velocity: 2.0 } }
+    double_jump:      { cooldown: 30.0, charges: 0, details: { dash-velocity-multiplier: 1.0, dash-y-velocity: 0.5 } } # 쿨다운은 PvP 피격 시에만 적용
+    supercharge:      { cooldown: 10.0,  charges: 1, details: { charge-time-seconds: 5.0, charged-duration-seconds: 5.0, damage: 20.0, target-knockback-strength: 1.5, shooter-knockback-strength: 0.8 } }
+    damage_negation:  { cooldown: 30.0, charges: 0, details: { chance: 0.07 } } # 쿨다운은 발동 성공 시에만 적용
+    laser_shot:       { cooldown: 0.0,  charges: 0, details: { required-level: 10, velocity-multiplier: 3.0, glow-duration-seconds: 10 } }
+    backflow:         { cooldown: 10.0, charges: 2, details: { phase1-damage: 10.0, phase2-damage: 20.0 } }
+    vampirism:        { cooldown: 90.0, charges: 1, details: { health-steal-percent: 40.0, damage-multiplier: 0.5 } }
+    shield_bash:      { cooldown: 150.0,charges: 1, details: { dash-strength: 2.0, shockwave-delay-ticks: 6, shockwave-radius-x: 3.0, shockwave-radius-y: 2.0, shockwave-radius-z: 3.0, launch-strength: 1.2 } }
+    stun:             { cooldown: 120.0,charges: 1, details: { duration-seconds: 1.5 } }
+    grappling_hook:   { cooldown: 120.0,charges: 4, details: { range: 30, pull-strength: 2.5 } }
+    grab:             { cooldown: 60.0, charges: 1, details: { pull-strength: 2.5, cast-velocity-multiplier: 3.0, cast-max-velocity: 10.0, upward-force: 1.2, max-pull-strength: 10.0 } }
+    parricide:        { cooldown: 60.0, charges: 1, details: { shield-cooldown-seconds: 30 } }
+    regeneration:     { cooldown: 1.0,  charges: 0, details: { duration-seconds: 30, amplifier: 0 } }
+
+  # ==================================================================
   # 장비 종류별 강화 당 보너스 속성 설정
-  attribute-bonuses:
+  # ==================================================================
+  generic-bonuses:
     chestplate: { health-per-level: 2.0 }
     boots: { speed-multiplier-per-level: 0.05 }
     leggings: { health-per-level: 2.0 }
@@ -89,6 +80,9 @@ upgrade:
     shovel: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
     axe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
     hoe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
+    bow: { passive-max-health-damage-percent-per-level: 1.5, passive-max-health-damage-max-percent: 15.0 } # 활 전용 (현재 체력 비례 피해)
+    crossbow: { damage-per-level: 0.5 } # 쇠뇌 전용 (고정 피해)
+    trident: { slowness-duration-seconds: 3.0, slowness-level: 2, spread-radius: 3.0, spread-velocity-multiplier: 0.1, riptide-velocity-multiplier: 1.0 }
     fishing_rod: { unbreaking-per-level: 0.5, lure-per-level: 0.5, luck_of_the_sea-per-level: 0.5 }
     shield: { unbreaking-per-level: 1.0 }
     sword: { attack-speed-per-level: 0.3 }
@@ -140,7 +134,7 @@ pylon:
     resurrection-cost-per-minute: 1
   # 파일런 회수
   retrieval:
-    cooldown-hours: 24
+    cooldown-hours: 48
     reinstall-duration-hours: 2
   # 정찰 불꽃
   recon-firework:
@@ -163,7 +157,8 @@ pylon:
 # 사망 & 부활 (Death & Respawn)
 # ==================================================================
 death-timer:
-  duration-minutes: 5 # 부활 대기시간 (분). 0으로 설정 시 비활성화됩니다.
+  enabled: true
+  time: 60 # 부활 대기시간 (분)
 # ==================================================================
 # 월드 & 게임 규칙 (World & Game Rules)
 # ==================================================================
@@ -176,8 +171,10 @@ world:
     keep-inventory: true
     location-info-disabled: true
     phantom-disabled: true
-    totem-enabled: false
-    enderchest-enabled: false
+    # 플레이어 위치 좌표 막대 표시 여부 (1.20.5 이상)
+    locator-bar-disabled: true
+    totem-disabled: true
+    enderchest-disabled: true
     potion-limit: 4
     # 월드 난이도 (PEACEFUL, EASY, NORMAL, HARD)
     difficulty: HARD
@@ -192,25 +189,24 @@ items:
   magic-stone-recipe-output: 4
   notched-apple-recipe: true
   op-enchant:
-    breach-enabled: false
-    thorns-enabled: false
+    breach-disabled: true
+    thorns-disabled: true
 
 # ==================================================================
 # 보스 & 이벤트 (Bosses & Events)
 # ==================================================================
 boss-mob-strength:
-  ender_dragon: 2.0
-  wither: 2.0
+  ender_dragon: 3.0
+  wither: 3.0
 events:
-  supply-drop-enabled: true
-  # 게임 중 매일 발생하는 보급 이벤트
+
   supply-drop:
     # 이벤트 활성화 여부
     enabled: true
     # 매일 이벤트가 발생할 확률 (0.0 ~ 1.0)
-    chance-per-day: 0.05 # 5%
+    cooldown-hours: 8
     # 제단 생성 후 보급(알 파괴 가능)까지의 대기 시간 (시간)
-    spawn-delay-hours: 1
+    spawn-delay-hours: 0
     # 알을 파괴하는 데 걸리는 시간 (초)
     break-duration-seconds: 8
     # 알 파괴 후 제단이 사라지기까지의 시간 (분)
@@ -248,3 +244,5 @@ utility:
   clan-chat-prefix-enabled: true
   # 킬 로그 메시지 활성화
   kill-log-enabled: true
+  # 전체 채팅 비활성화
+  chat-disabled: false

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 public class ProfileRegistry {
-    private final Map<Material, IWeaponProfile> profiles = new HashMap<>();
+    private final Map<Material, IUpgradeableProfile> profiles = new HashMap<>();
 
     public ProfileRegistry() {
         registerDefaultProfiles();
@@ -36,7 +36,7 @@ public class ProfileRegistry {
         registerArmorSet("BOOTS", BootsProfile::new);
     }
 
-    private void registerToolSet(String toolName, Supplier<IWeaponProfile> profileSupplier) {
+    private void registerToolSet(String toolName, Supplier<IUpgradeableProfile> profileSupplier) {
         Set.of("WOODEN", "STONE", "IRON", "GOLDEN", "DIAMOND", "NETHERITE").forEach(tier -> {
             Material material = Material.getMaterial(tier + "_" + toolName);
             if (material != null) {
@@ -45,7 +45,7 @@ public class ProfileRegistry {
         });
     }
 
-    private void registerArmorSet(String armorName, Supplier<IWeaponProfile> profileSupplier) {
+    private void registerArmorSet(String armorName, Supplier<IUpgradeableProfile> profileSupplier) {
         Set.of("LEATHER", "CHAINMAIL", "IRON", "GOLDEN", "DIAMOND", "NETHERITE").forEach(tier -> {
             Material material = Material.getMaterial(tier + "_" + armorName);
             if (material != null) {
@@ -54,11 +54,11 @@ public class ProfileRegistry {
         });
     }
 
-    public IWeaponProfile getProfile(Material material) {
+    public IUpgradeableProfile getProfile(Material material) {
         return profiles.get(material);
     }
 
-    public Collection<IWeaponProfile> getAllProfiles() {
+    public Collection<IUpgradeableProfile> getAllProfiles() {
         return profiles.values();
     }
 }
