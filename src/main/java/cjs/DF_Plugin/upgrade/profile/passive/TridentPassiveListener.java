@@ -191,7 +191,16 @@ public class TridentPassiveListener implements Listener {
                 // 물 속에 있을 때 속도 저하를 상쇄하여 물을 통과하는 것처럼 보이게 합니다.
                 // 이 값은 실험적으로 조정될 수 있습니다.
                 if (trident.isInWater()) {
-                    trident.setVelocity(trident.getVelocity().multiply(1.2375));
+                    // [FIX] 삼지창 속도가 물 속에서 무한히 증폭되어 서버를 멈추게 하는 버그를 수정합니다.
+                    // 기존 코드는 매 틱마다 속도를 1.2375배하여 기하급수적인 속도 증가를 유발했습니다.
+                    // 이를 방지하기 위해 속도 상한선을 도입합니다.
+                    Vector newVelocity = trident.getVelocity().multiply(1.2375);
+                    final double maxSpeed = 60.0; // 초당 60블록의 상한 속도 (매우 빠름)
+                    if (newVelocity.lengthSquared() > maxSpeed * maxSpeed) {
+                        // 속도가 상한선을 초과하면, 방향은 유지하되 속도만 상한선으로 제한합니다.
+                        newVelocity = newVelocity.normalize().multiply(maxSpeed);
+                    }
+                    trident.setVelocity(newVelocity);
                 }
 
                 // 삼지창이 땅에 박혔는지 확인합니다.

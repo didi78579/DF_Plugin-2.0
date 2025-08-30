@@ -97,13 +97,14 @@ public class SuperJumpAbility implements ISpecialAbility {
 
             }
         } else {
-            // 웅크리기 해제 시
-            // 슈퍼 점프가 완전히 충전되었다면 점프를 실행합니다.
-            // 여기서 is_on_ground 체크를 제거하여, 점프와 동시에 웅크리기를 해제해도 발동되도록 합니다.
-            if (isSuperJumpCharged.getOrDefault(playerUUID, false)) {
-                performSuperJump(player, item);
+            // 웅크리기 해제 시:
+            // 만약 충전이 완료되지 않은 상태(충전 중)였다면, 충전을 취소합니다.
+            if (chargeTasks.containsKey(playerUUID)) {
+                cleanupChargeState(playerUUID);
+                player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.5f);
             }
-            cleanupChargeState(playerUUID);
+            // 충전이 완료된 상태에서 웅크리기를 해제해도 아무것도 하지 않습니다.
+            // 플레이어는 이제 점프하여 능력을 발동할 수 있습니다.
         }
     }
 
@@ -177,11 +178,10 @@ public class SuperJumpAbility implements ISpecialAbility {
         if (chargeTasks.containsKey(player.getUniqueId())) {
             cancelCharging(player);
         }
-        // 충전이 완료된 상태에서 점프하면 준비 상태 취소
+        // 충전이 완료된 상태에서 점프하면 슈퍼 점프를 발동합니다.
         else if (isSuperJumpCharged.getOrDefault(player.getUniqueId(), false)) {
-            isSuperJumpCharged.remove(player.getUniqueId());
-            player.sendMessage("§c점프하여 슈퍼 점프 준비가 취소되었습니다.");
-            player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 1.0f);
+            performSuperJump(player, item);
+            isSuperJumpCharged.remove(player.getUniqueId()); // 능력을 사용했으므로 충전 상태를 해제합니다.
         }
     }
 }

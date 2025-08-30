@@ -5,6 +5,7 @@ import cjs.DF_Plugin.DF_Main;
 import cjs.DF_Plugin.upgrade.specialability.ISpecialAbility;
 import cjs.DF_Plugin.upgrade.specialability.SpecialAbilityManager;
 import org.bukkit.Location;
+import org.bukkit.event.block.Action;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -50,10 +51,15 @@ public class GrapplingHookAbility implements ISpecialAbility {
 
     @Override
     public void onPlayerInteract(PlayerInteractEvent event, Player player, ItemStack item) {
-        // 이미 훅이 고정된 상태라면, 다시 발사하지 않고 취소합니다.
+        // 이미 훅이 고정된 상태라면, 어떤 클릭이든 취소하고 훅을 회수합니다.
         if (latchedHooks.containsKey(player.getUniqueId())) {
             latchedHooks.remove(player.getUniqueId());
             player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 0.7f, 1.2f); // 훅 회수 사운드
+            return;
+        }
+
+        // [수정] 훅 발사는 우클릭으로만 가능하도록 제한합니다.
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
 

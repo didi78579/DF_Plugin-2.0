@@ -46,7 +46,7 @@ public class BowPassiveListener implements Listener {
     }
 
     /**
-     * 엔티티가 활에서 발사된 화살에 맞았을 때, 강화 레벨에 따른 추가 고정 피해(최대 체력 비례)를 적용합니다.
+     * 엔티티가 활에서 발사된 화살에 맞았을 때, 강화 레벨에 따른 추가 고정 피해(현재 체력 비례)를 적용합니다.
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onDamageByBowArrow(EntityDamageByEntityEvent event) {
@@ -64,11 +64,12 @@ public class BowPassiveListener implements Listener {
         int level = arrow.getMetadata(BOW_PASSIVE_LEVEL_KEY).get(0).asInt();
         if (level <= 0) return;
 
-        double percentPerLevel = plugin.getGameConfigManager().getConfig().getDouble("upgrade.generic-bonuses.bow.passive-max-health-damage-percent-per-level", 1.5) / 100.0;
-        double maxPercent = plugin.getGameConfigManager().getConfig().getDouble("upgrade.generic-bonuses.bow.passive-max-health-damage-max-percent", 15.0) / 100.0;
+        double percentPerLevel = plugin.getGameConfigManager().getConfig().getDouble("upgrade.generic-bonuses.bow.passive-current-health-damage-percent-per-level", 1.5) / 100.0;
+        double maxPercent = plugin.getGameConfigManager().getConfig().getDouble("upgrade.generic-bonuses.bow.passive-current-health-damage-max-percent", 15.0) / 100.0;
 
         double healthPercentage = Math.min(percentPerLevel * level, maxPercent);
-        final double additionalDamage = target.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue() * healthPercentage;
+        // [수정] 최대 체력이 아닌 '현재 체력'에 비례하여 추가 피해를 계산합니다.
+        final double additionalDamage = target.getHealth() * healthPercentage;
 
         // 갑옷을 무시하는 고정 피해를 주기 위해, 이벤트 처리 후 체력을 직접 감소시킵니다.
         new BukkitRunnable() {

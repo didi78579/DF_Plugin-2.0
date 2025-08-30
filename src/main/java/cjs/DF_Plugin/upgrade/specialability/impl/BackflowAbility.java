@@ -419,8 +419,17 @@ public class BackflowAbility implements ISpecialAbility {
                         if (tickCounter == 0) {
                             for (Entity entity : center.getWorld().getNearbyEntities(center.clone().add(0, 100, 0), radius, 100, radius)) {
                                 if (entity instanceof LivingEntity livingEntity && !livingEntity.getUniqueId().equals(player.getUniqueId())) {
+                                    // 1. 일반 데미지 적용
                                     livingEntity.damage(initialDamage, player);
                                     livingEntity.getWorld().spawnParticle(Particle.FLASH, livingEntity.getLocation().add(0, 1, 0), 1);
+
+                                    // 2. 방어력 무시 고정 데미지 추가 적용
+                                    if (livingEntity.isValid() && !livingEntity.isDead()) {
+                                        double newHealth = Math.max(0, livingEntity.getHealth() - initialDamage);
+                                        livingEntity.setHealth(newHealth);
+                                        // 고정 데미지에 대한 피격 효과를 수동으로 재생하여 시각적 피드백을 줍니다.
+                                        livingEntity.playEffect(org.bukkit.EntityEffect.HURT);
+                                    }
                                 }
                             }
                         }
@@ -431,8 +440,16 @@ public class BackflowAbility implements ISpecialAbility {
                         // 주변 엔티티에 효과 적용 (범위를 물기둥 높이에 맞춤)
                         for (Entity entity : center.getWorld().getNearbyEntities(center.clone().add(0, 100, 0), radius, 100, radius)) {
                             if (entity instanceof LivingEntity target && !target.getUniqueId().equals(player.getUniqueId())) {
-                                // 데미지 적용
+                                // 1. 일반 데미지 적용
                                 target.damage(damage, player);
+
+                                // 2. 방어력 무시 고정 데미지 추가 적용
+                                if (target.isValid() && !target.isDead()) {
+                                    double newHealth = Math.max(0, target.getHealth() - damage);
+                                    target.setHealth(newHealth);
+                                    // 고정 데미지에 대한 피격 효과를 수동으로 재생합니다.
+                                    target.playEffect(org.bukkit.EntityEffect.HURT);
+                                }
                             }
                         }
                     }

@@ -394,9 +394,10 @@ public class RiftManager {
     private void handleEggBreak(Player player) {
         if (!isEventActive) return;
 
-        isEventActive = false;
         cleanupBossBar();
 
+        // [FIX] isEventActive 플래그를 여기서 미리 false로 변경하면 스케줄러가 이벤트를 즉시 다시 시작하는 버그가 발생합니다.
+        // isEventActive 상태는 cleanupAltar() 메서드에서 모든 정리가 끝난 후, 쿨다운 시작과 함께 변경되어야 합니다.
         Bukkit.broadcastMessage("§d[차원의 균열] §f차원의 균열이 닫힙니다.");
         Bukkit.getOnlinePlayers().forEach(p -> p.playSound(p.getLocation(), Sound.ENTITY_WITHER_DEATH, 1.0f, 0.6f));
 

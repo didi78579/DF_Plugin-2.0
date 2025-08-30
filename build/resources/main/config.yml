@@ -82,7 +82,7 @@ upgrade:
     shovel: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
     axe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
     hoe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
-    bow: { passive-max-health-damage-percent-per-level: 1.5, passive-max-health-damage-max-percent: 15.0 }
+    bow: { passive-current-health-damage-percent-per-level: 1.5, passive-current-health-damage-max-percent: 15.0 }
     crossbow: { damage-per-level: 0.5 }
     trident: { slowness-duration-seconds: 3.0, slowness-level: 2, spread-radius: 3.0, spread-velocity-multiplier: 0.1, riptide-velocity-multiplier: 1.0 }
     fishing_rod: { velocity-bonus-per-level: 0.4 }

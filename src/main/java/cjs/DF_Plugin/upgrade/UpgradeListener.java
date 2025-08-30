@@ -118,20 +118,28 @@ public class UpgradeListener implements Listener {
     }
 
     private void handlePlaceItem(InventoryClickEvent event, Player player, Inventory inventory) {
-        ItemStack clickedItem = event.getCurrentItem();
+        final ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
 
-        ItemStack itemInSlot = inventory.getItem(UpgradeGUI.UPGRADE_ITEM_SLOT);
-        if (itemInSlot != null && itemInSlot.isSimilar(UpgradeGUI.createAnvilPlaceholder())) {
-            if (upgradeManager.getProfileRegistry().getProfile(clickedItem.getType()) != null) {
-                inventory.setItem(UpgradeGUI.UPGRADE_ITEM_SLOT, clickedItem.clone());
-                event.setCurrentItem(null);
-
-                player.playSound(player.getLocation(), Sound.UI_STONECUTTER_TAKE_RESULT, 0.7f, 1.5f);
-            } else {
-                player.sendMessage(PREFIX + "§c이 아이템은 강화할 수 없습니다.");
-            }
+        // [수정] 강화할 수 없는 아이템은 아예 넣지 못하게 막습니다.
+        if (upgradeManager.getProfileRegistry().getProfile(clickedItem.getType()) == null) {
+            player.sendMessage(PREFIX + "§c이 아이템은 강화할 수 없습니다.");
+            player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 1.0f, 1.0f);
+            return;
         }
+
+        final ItemStack itemInSlot = inventory.getItem(UpgradeGUI.UPGRADE_ITEM_SLOT);
+
+        // [개선] 아이템을 교체하는 로직
+        inventory.setItem(UpgradeGUI.UPGRADE_ITEM_SLOT, clickedItem.clone());
+        event.setCurrentItem(null); // 플레이어 인벤토리에서 아이템 제거
+
+        // 기존에 있던 아이템이 플레이스홀더가 아니었다면 플레이어 인벤토리로 돌려줍니다.
+        if (itemInSlot != null && !itemInSlot.isSimilar(UpgradeGUI.createAnvilPlaceholder())) {
+            giveOrDropItems(player, itemInSlot);
+        }
+
+        player.playSound(player.getLocation(), Sound.UI_STONECUTTER_TAKE_RESULT, 0.7f, 1.5f);
     }
 
     private void giveOrDropItems(Player player, ItemStack items) {
