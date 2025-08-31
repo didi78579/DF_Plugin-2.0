@@ -75,13 +75,10 @@ public class SwordDanceAbility implements ISpecialAbility {
             Method resetCooldownMethod = nmsPlayer.getClass().getMethod("resetAttackStrengthTicker");
             resetCooldownMethod.invoke(nmsPlayer);
         } catch (Exception e) {
-            // 리플렉션 실패 시 경고 로그를 남깁니다. 서버 버전이 크게 변경되었을 때 발생할 수 있습니다.
             DF_Main.getInstance().getLogger().warning(
                     "[SwordDance] Failed to reset attack cooldown for " + player.getName() +
                     " via reflection. This might be due to a server version update."
             );
-            // 디버깅을 위해 스택 트레이스를 콘솔에 출력합니다.
-            e.printStackTrace();
         }
     }
 }
