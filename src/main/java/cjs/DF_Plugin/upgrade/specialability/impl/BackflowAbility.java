@@ -104,9 +104,10 @@ public class BackflowAbility implements ISpecialAbility {
         final double preEffectDurationSeconds = 3.0; // 삼지창 투하 후 메인 이펙트까지의 시간
         double effectDuration = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.backflow.details.effect-duration-seconds", 3.0);
         double radius = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.backflow.details.radius", 8.0);
-        double damagePerTick = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.backflow.details.damage-per-tick", 5.0);
+        // [수정] 새로운 데미지 설정 값을 읽어옵니다.
+        double normalDamagePerSecond = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.backflow.details.normal-damage-per-second", 10.0);
+        double healthPercentDamage = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.backflow.details.current-health-percent-damage", 60.0) / 100.0;
         double pullStrength = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.backflow.details.pull-strength", 2.5);
-        double initialDamage = DF_Main.getInstance().getGameConfigManager().getConfig().getDouble("upgrade.special-abilities.backflow.details.initial-damage", 30.0);
 
         // --- 이벤트 순서 재정의 ---
 
@@ -169,12 +170,12 @@ public class BackflowAbility implements ISpecialAbility {
             @Override
             public void run() {
                 if (fallingTrident.isValid()) fallingTrident.remove();
-                startMainEffect(player, center, effectDuration, radius, damagePerTick, pullStrength, initialDamage);
+                startMainEffect(player, center, effectDuration, radius, normalDamagePerSecond, healthPercentDamage, pullStrength);
             }
         }.runTaskLater(DF_Main.getInstance(), (long) (preEffectDurationSeconds * 20));
     }
 
-    private void startMainEffect(Player player, Location center, double duration, double radius, double damage, double pullStrength, double initialDamage) {
+    private void startMainEffect(Player player, Location center, double duration, double radius, double normalDamagePerSecond, double healthPercentDamage, double pullStrength) {
         // --- Ambient Rain Sound ---
         final double totalSoundDuration = duration + 2.5; // 2.5 extra seconds for fade out
         new BukkitRunnable() {
@@ -415,40 +416,31 @@ public class BackflowAbility implements ISpecialAbility {
 
                     // --- Game Logic (every 4 ticks) ---
                     if (tickCounter % 4 == 0) {
-                        // 첫 틱에만 초기 폭발 데미지를 줍니다.
-                        if (tickCounter == 0) {
-                            for (Entity entity : center.getWorld().getNearbyEntities(center.clone().add(0, 100, 0), radius, 100, radius)) {
-                                if (entity instanceof LivingEntity livingEntity && !livingEntity.getUniqueId().equals(player.getUniqueId())) {
-                                    // 1. 일반 데미지 적용
-                                    livingEntity.damage(initialDamage, player);
-                                    livingEntity.getWorld().spawnParticle(Particle.FLASH, livingEntity.getLocation().add(0, 1, 0), 1);
+                        // [수정] 새로운 데미지 및 효과 로직
+                        // 4틱(0.2초)마다 피해를 적용하므로, 초당 피해량을 5로 나눕니다.
+                        final double normalDamagePerApplication = normalDamagePerSecond / 5.0;
 
-                                    // 2. 방어력 무시 고정 데미지 추가 적용
-                                    if (livingEntity.isValid() && !livingEntity.isDead()) {
-                                        double newHealth = Math.max(0, livingEntity.getHealth() - initialDamage);
-                                        livingEntity.setHealth(newHealth);
-                                        // 고정 데미지에 대한 피격 효과를 수동으로 재생하여 시각적 피드백을 줍니다.
-                                        livingEntity.playEffect(org.bukkit.EntityEffect.HURT);
-                                    }
-                                }
-                            }
-                        }
-
-                        // 지속적으로 재생되던 아이템 타는 소리를 제거하여,
-                        // 시작 시의 워든 음파 파동 소리에 집중하도록 합니다.
-                        
                         // 주변 엔티티에 효과 적용 (범위를 물기둥 높이에 맞춤)
                         for (Entity entity : center.getWorld().getNearbyEntities(center.clone().add(0, 100, 0), radius, 100, radius)) {
                             if (entity instanceof LivingEntity target && !target.getUniqueId().equals(player.getUniqueId())) {
-                                // 1. 일반 데미지 적용
-                                target.damage(damage, player);
+                                // 1. 중앙으로 끌어당기는 효과
+                                Vector direction = center.toVector().subtract(target.getLocation().toVector());
+                                if (direction.lengthSquared() > 1) { // 너무 가까우면 힘이 과도해지는 것을 방지
+                                    direction.normalize();
+                                }
+                                target.setVelocity(target.getVelocity().add(direction.multiply(pullStrength * 0.1)));
 
-                                // 2. 방어력 무시 고정 데미지 추가 적용
+                                // 2. 방어력 무시 현재 체력 비례 데미지
+                                double trueDamage = target.getHealth() * healthPercentDamage;
                                 if (target.isValid() && !target.isDead()) {
-                                    double newHealth = Math.max(0, target.getHealth() - damage);
+                                    double newHealth = Math.max(0, target.getHealth() - trueDamage);
                                     target.setHealth(newHealth);
-                                    // 고정 데미지에 대한 피격 효과를 수동으로 재생합니다.
                                     target.playEffect(org.bukkit.EntityEffect.HURT);
+                                }
+
+                                // 3. 일반 고정 데미지
+                                if (target.isValid() && !target.isDead()) {
+                                    target.damage(normalDamagePerApplication, player);
                                 }
                             }
                         }

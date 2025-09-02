@@ -97,14 +97,12 @@ public class SuperJumpAbility implements ISpecialAbility {
 
             }
         } else {
-            // 웅크리기 해제 시:
-            // 만약 충전이 완료되지 않은 상태(충전 중)였다면, 충전을 취소합니다.
-            if (chargeTasks.containsKey(playerUUID)) {
-                cleanupChargeState(playerUUID);
-                player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.5f);
+            // 웅크리기 해제 시: 슈퍼 점프가 완전히 충전되었다면 점프를 실행합니다.
+            if (isSuperJumpCharged.getOrDefault(playerUUID, false)) {
+                performSuperJump(player, item);
             }
-            // 충전이 완료된 상태에서 웅크리기를 해제해도 아무것도 하지 않습니다.
-            // 플레이어는 이제 점프하여 능력을 발동할 수 있습니다.
+            // 점프를 했든, 충전 중에 웅크리기를 해제하여 취소되었든, 항상 상태를 초기화합니다.
+            cleanupChargeState(playerUUID);
         }
     }
 
@@ -134,12 +132,6 @@ public class SuperJumpAbility implements ISpecialAbility {
             chargeTasks.get(playerUUID).cancel();
             chargeTasks.remove(playerUUID);
         }
-    }
-
-    private void cancelCharging(Player player) {
-        cleanupChargeState(player.getUniqueId());
-        player.sendMessage("§c점프하여 슈퍼 점프 충전이 취소되었습니다.");
-        player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.5f);
     }
 
     private void performSuperJump(Player player, ItemStack item) {
@@ -174,14 +166,12 @@ public class SuperJumpAbility implements ISpecialAbility {
     }
     @Override
     public void onPlayerJump(PlayerJumpEvent event, Player player, ItemStack item) {
-        // 충전 중일 때 점프하면 충전 취소
+        // 충전 중일 때 점프하면 충전이 취소됩니다.
+        // 참고: BukkitRunnable의 !player.isOnGround() 체크로도 취소되지만,
+        // 이 핸들러는 즉각적인 사운드 피드백을 제공하는 역할을 합니다.
         if (chargeTasks.containsKey(player.getUniqueId())) {
-            cancelCharging(player);
-        }
-        // 충전이 완료된 상태에서 점프하면 슈퍼 점프를 발동합니다.
-        else if (isSuperJumpCharged.getOrDefault(player.getUniqueId(), false)) {
-            performSuperJump(player, item);
-            isSuperJumpCharged.remove(player.getUniqueId()); // 능력을 사용했으므로 충전 상태를 해제합니다.
+            cleanupChargeState(player.getUniqueId());
+            player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.5f);
         }
     }
 }

@@ -41,13 +41,21 @@ public class SwordProfile implements IUpgradeableProfile {
         }
 
         // 3. 공격 속도 속성을 적용합니다.
-        final double baseAttackSpeedAttribute = -2.4; // 4.0 (base) - 2.4 = 1.6
-        double speedBonusPerLevel = DF_Main.getInstance().getGameConfigManager().getConfig()
-                .getDouble("upgrade.generic-bonuses.sword.attack-speed-per-level", 0.3);
-        double totalBonus = speedBonusPerLevel * level;
-        double finalAttackSpeedModifierValue = baseAttackSpeedAttribute + totalBonus;
-
-        AttributeModifier speedModifier = new AttributeModifier(BASE_ATTACK_SPEED_MODIFIER_UUID, "weapon.attack_speed", finalAttackSpeedModifierValue, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND);
+        AttributeModifier speedModifier;
+        if (level >= 10) {
+            // 10강 이상일 경우: 공격 속도를 최대치(사실상 무한)로 설정합니다.
+            // 바닐라 기본값 4.0에 1020을 더해 1024로 만듭니다. 이 값은 공격 쿨다운이 없는 것처럼 보이게 합니다.
+            // 실제 즉시 공격 로직은 SwordDanceAbility에서 처리합니다.
+            speedModifier = new AttributeModifier(BASE_ATTACK_SPEED_MODIFIER_UUID, "weapon.attack_speed", 1020, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND);
+        } else {
+            // 10강 미만일 경우: 레벨에 따라 점진적으로 공격 속도를 증가시킵니다.
+            final double baseAttackSpeedAttribute = -2.4; // 4.0 (base) - 2.4 = 1.6
+            double speedBonusPerLevel = DF_Main.getInstance().getGameConfigManager().getConfig()
+                    .getDouble("upgrade.generic-bonuses.sword.attack-speed-per-level", 0.3);
+            double totalBonus = speedBonusPerLevel * level;
+            double finalAttackSpeedModifierValue = baseAttackSpeedAttribute + totalBonus;
+            speedModifier = new AttributeModifier(BASE_ATTACK_SPEED_MODIFIER_UUID, "weapon.attack_speed", finalAttackSpeedModifierValue, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND);
+        }
         meta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, speedModifier);
 
         // --- 로어 표시 수정 ---
@@ -59,6 +67,9 @@ public class SwordProfile implements IUpgradeableProfile {
     public List<String> getPassiveBonusLore(ItemStack item, int level) {
         if (level <= 0) {
             return Collections.emptyList();
+        }
+        if (level >= 10) {
+            return List.of("§b공격 속도: 최대");
         }
         double speedBonusPerLevel = DF_Main.getInstance().getGameConfigManager().getConfig()
                 .getDouble("upgrade.generic-bonuses.sword.attack-speed-per-level", 0.3);
@@ -76,14 +87,18 @@ public class SwordProfile implements IUpgradeableProfile {
         double finalDamage = 1.0 + damageModifierValue;
         baseLore.add("§2 " + String.format("%.1f", finalDamage) + " 공격 피해");
 
-        // 최종 공격 속도 계산 및 추가
-        final double baseAttackSpeedAttribute = -2.4;
-        double speedBonusPerLevel = DF_Main.getInstance().getGameConfigManager().getConfig()
-                .getDouble("upgrade.generic-bonuses.sword.attack-speed-per-level", 0.3);
-        double totalBonus = speedBonusPerLevel * level;
-        double finalAttackSpeedModifierValue = baseAttackSpeedAttribute + totalBonus;
-        double finalSpeed = 4.0 + finalAttackSpeedModifierValue; // 4.0 + (-2.4 + bonus) = 1.6 + bonus
-        baseLore.add("§2 " + String.format("%.1f", finalSpeed) + " 공격 속도");
+        if (level >= 10) {
+            // 10강 이상에서는 공격 속도 정보가 getPassiveBonusLore에서 표시되므로 여기서는 추가하지 않습니다.
+        } else {
+            // 10강 미만일 경우 실제 수치 계산 및 추가
+            final double baseAttackSpeedAttribute = -2.4;
+            double speedBonusPerLevel = DF_Main.getInstance().getGameConfigManager().getConfig()
+                    .getDouble("upgrade.generic-bonuses.sword.attack-speed-per-level", 0.3);
+            double totalBonus = speedBonusPerLevel * level;
+            double finalAttackSpeedModifierValue = baseAttackSpeedAttribute + totalBonus;
+            double finalSpeed = 4.0 + finalAttackSpeedModifierValue; // 4.0 + (-2.4 + bonus) = 1.6 + bonus
+            baseLore.add("§2 " + String.format("%.1f", finalSpeed) + " 공격 속도");
+        }
 
         return baseLore;
     }

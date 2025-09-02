@@ -55,17 +55,17 @@ upgrade:
   # ==================================================================
   special-abilities:
     super_jump:       { cooldown: 10.0, charges: 1, details: { charge-time-seconds: 2.0, jump-velocity: 2.0 } }
-    double_jump:      { cooldown: 30.0, charges: 0, details: { dash-velocity-multiplier: 1.0, dash-y-velocity: 0.5 } }
+    double_jump:      { cooldown: 30.0, charges: 0, details: { dash-velocity-multiplier: 1.2, dash-y-velocity: 0.5 } }
     supercharge:      { cooldown: 10.0, charges: 1, details: { charge-time-seconds: 5.0, charged-duration-seconds: 5.0, damage: 20.0, target-knockback-strength: 1.5, shooter-knockback-strength: 0.8 } }
     passive_absorption: { cooldown: 0.0, charges: 0, details: { no-damage-delay-seconds: 20, regen-interval-seconds: 4, max-shields: 4 } }
     laser_shot:       { cooldown: 0.0,  charges: 0, details: { required-level: 10, velocity-multiplier: 3.0, glow-duration-seconds: 10 } }
-    backflow:         { cooldown: 300.0,charges: 1, details: { cast-duration-seconds: 1.5, effect-duration-seconds: 3.0, radius: 8.0, damage-per-tick: 4.0, pull-strength: 2.5, initial-damage: 25.0 } }
-    lightning_spear:  { cooldown: 0.1,  charges: 0, details: { max-charges: 5, stack-duration-seconds: 30.0, extra-physical-damage: 4.0, lightning-damage: 16.0, timeout-seconds: 10.0, orbit-radius: 1.9, sprint-orbit-radius: 1.5 } }
+    backflow:         { cooldown: 300.0, details: { effect-duration-seconds: 3.0, radius: 8.0, pull-strength: 2.5, normal-damage-per-second: 10.0, current-health-percent-damage: 60.0 } }
+    lightning_spear:  { cooldown: 0.1,  charges: 0, details: { max-charges: 5, stack-duration-seconds: 30.0, extra-physical-damage: 8.0, lightning-damage: 16.0, timeout-seconds: 10.0, orbit-radius: 1.9, sprint-orbit-radius: 1.5 } }
     vampirism:        { cooldown: 90.0, charges: 1, details: { health-steal-percent: 40.0, damage-multiplier: 0.5 } }
-    shield_bash:      { cooldown: 75.0, charges: 1, details: { dash-strength: 2.0, shockwave-delay-ticks: 6, shockwave-radius-x: 3.0, shockwave-radius-y: 2.0, shockwave-radius-z: 3.0, launch-strength: 1.2 } }
+    shield_bash:      { cooldown: 75.0, charges: 1, details: { dash-strength: 4.0, shockwave-delay-ticks: 6, shockwave-radius-x: 3.0, shockwave-radius-y: 2.0, shockwave-radius-z: 3.0, launch-strength: 1.2 } }
     stun:             { cooldown: 120.0, charges: 1, details: { duration-seconds: 1.5 } }
     grappling_hook:   { cooldown: 120.0, charges: 4, details: { range: 30, pull-strength: 2.5 } }
-    grab:             { cooldown: 60.0, charges: 1, details: { pull-strength: 2.5, cast-velocity-multiplier: 3.0, cast-max-velocity: 10.0, upward-force: 1.2, max-pull-strength: 10.0 } }
+    grab:             { cooldown: 30.0, charges: 1, details: { pull-strength: 2.5, cast-velocity-multiplier: 3.0, cast-max-velocity: 10.0, upward-force: 1.2, max-pull-strength: 10.0 } }
     cleansing:        { cooldown: 60.0, charges: 1, details: { shield-cooldown-seconds: 30 } }
     regeneration:     { cooldown: 1.0,  charges: 0, details: { duration-seconds: 30, amplifier: 0 } }
     totem_of_undying: { cooldown: 300.0 }
@@ -82,7 +82,7 @@ upgrade:
     shovel: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
     axe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
     hoe: { efficiency-per-level: 0.5, unbreaking-per-level: 0.5 }
-    bow: { passive-current-health-damage-percent-per-level: 1.5, passive-current-health-damage-max-percent: 15.0 }
+    bow: { passive-current-health-damage-percent-per-level: 1.5, passive-current-health-damage-max-percent: 15.0, passive-max-health-damage-percent-per-level: 1.5, passive-max-health-damage-max-percent: 15.0 }
     crossbow: { damage-per-level: 0.5 }
     trident: { slowness-duration-seconds: 3.0, slowness-level: 2, spread-radius: 3.0, spread-velocity-multiplier: 0.1, riptide-velocity-multiplier: 1.0 }
     fishing_rod: { velocity-bonus-per-level: 0.4 }
@@ -142,7 +142,7 @@ pylon:
     resurrection-cost-per-minute: 1
   # 파일런 회수
   retrieval:
-    cooldown-hours: 48
+    cooldown-hours: 24
     reinstall-duration-hours: 2
   # 정찰 불꽃
   recon-firework:
